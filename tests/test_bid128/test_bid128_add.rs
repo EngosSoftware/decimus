@@ -1,0 +1,2438 @@
+use super::*;
+use decimus::{Bid128, IdecFlags, bid128_add, bid128_from_string};
+
+macro_rules! check {
+  ($rnd_mode:expr, $x:expr, $y:expr, $expected:expr, $expected_flags:expr) => {
+    let mut actual_flags: IdecFlags = 0;
+    let expected = Bid128::new($expected[0], $expected[1]);
+    let actual = bid128_add(Bid128::new($x[0], $x[1]), Bid128::new($y[0], $y[1]), $rnd_mode, &mut actual_flags);
+    assert_eq!(expected, actual);
+    assert_eq!($expected_flags, actual_flags, "Result flags error, expected = {:02X}, actual = {:02X}", $expected_flags, actual_flags);
+  };
+  ($rnd_mode:expr, $x_rnd_mode:expr, $y_rnd_mode:expr, $x:expr, $y:expr, $expected:expr, $expected_flags:expr, $x_flags:expr, $y_flags:expr) => {
+    let mut actual_flags: IdecFlags = 0;
+    let expected = Bid128::new($expected[0], $expected[1]);
+    let x: Bid128 = bid128_from_string($x, $x_rnd_mode, &mut actual_flags);
+    assert_eq!($x_flags, actual_flags, "X flags error, expected = {:02X}, actual = {:02X}", $x_flags, actual_flags);
+    let y: Bid128 = bid128_from_string($y, $y_rnd_mode, &mut actual_flags);
+    assert_eq!($y_flags, actual_flags, "Y flags error, expected = {:02X}, actual = {:02X}", $y_flags, actual_flags);
+    let actual = bid128_add(x, y, $rnd_mode, &mut actual_flags);
+    assert_eq!(expected, actual);
+    assert_eq!($expected_flags, actual_flags, "Result flags error, expected = {:02X}, actual = {:02X}", $expected_flags, actual_flags);
+  };
+}
+
+#[test]
+fn _0001() {
+  check!(0, [0x3040000000000000, 0x0000000000000000], [0x3040000000000000, 0x0000000000000000], [0x3040000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0002() {
+  check!(0, [0x7c00000000000000, 0x0000000000000000], [0x3040000000000000, 0x0000000000000000], [0x7c00000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0003() {
+  check!(0, [0x7e00000000000000, 0x0000000000000000], [0x3040000000000000, 0x0000000000000000], [0x7c00000000000000, 0x0000000000000000], F_01_01);
+}
+
+#[test]
+fn _0004() {
+  check!(0, [0x7e00000000000000, 0x0000000000000000], [0x7c00000000000000, 0x0000000000000000], [0x7c00000000000000, 0x0000000000000000], F_01_01);
+}
+
+#[test]
+fn _0005() {
+  check!(0, [0x7c00000000000000, 0x0000000000000000], [0x7e00000000000000, 0x0000000000000000], [0x7c00000000000000, 0x0000000000000000], F_01_01);
+}
+
+#[test]
+fn _0006() {
+  check!(0, [0x7c00314dc6448d93, 0x38c15b0affffffff], [0x3040000000000000, 0x0000000000000000], [0x7c00000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0007() {
+  check!(0, [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x7c003fffffffffff, 0x38c15b0affffffff], [0x7c00000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0008() {
+  check!(0, [0x7c003fffffffffff, 0x38c15b0affffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x7c00000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0009() {
+  check!(0, [0x7e00000000000000, 0x0000000000000000], [0x7e00000000000000, 0x0000000000000000], [0x7c00000000000000, 0x0000000000000000], F_01_01);
+}
+
+#[test]
+fn _0010() {
+  check!(0, [0x3040000000000000, 0x0000000000000000], [0x7e00000000000000, 0x0000000000000000], [0x7c00000000000000, 0x0000000000000000], F_01_01);
+}
+
+#[test]
+fn _0011() {
+  check!(0, [0x0000000000000000, 0x5dfecf59bad3acaa], [0x4014d000d4008a04, 0xffffffddfdfdfeff], [0x4014d000d4008a04, 0xffffffddfdfdfeff], F_20_20);
+}
+
+#[test]
+fn _0012() {
+  check!(0, [0x0000000000000000, 0xbefffffff7fcff1e], [0x8000000000000000, 0xcbedfff30fb57571], [0x8000000000000000, 0x0cedfff317b87653], F_00_00);
+}
+
+#[test]
+fn _0013() {
+  check!(0, [0x0000000000000000, 0xcfefffff1f5fb6eb], [0x4441ca6997b33fa3, 0xa1f5f866809b3dc6], [0x4441ca6997b33fa3, 0xa1f5f866809b3dc6], F_20_20);
+}
+
+#[test]
+fn _0014() {
+  check!(0, [0x0000000000008000, 0x004910c400000000], [0x5fe5f9ffd9ebcf7f, 0x000404e2000600a0], [0x0000000000008000, 0x004910c400000000], F_00_00);
+}
+
+#[test]
+fn _0015() {
+  check!(0, [0x0000000400000001, 0x8000060240234080], [0x0000000000000000, 0xf77afdfffb7fefff], [0x0000000400000002, 0x777b04023ba3307f], F_00_00);
+}
+
+#[test]
+fn _0016() {
+  check!(0, [0x0000000800001000, 0xe7f4747527f3fb0a], [0x0040010000000028, 0xebffffbeffddbf7f], [0x003c640000000ffc, 0x2fffe69bf29ecd9d], F_20_20);
+}
+
+#[test]
+fn _0017() {
+  check!(0, [0x0000004000200180, 0x1122b18887a0e944], [0x8001040000000000, 0xffffffffffffffff], [0x800103bfffdffe80, 0xeedd4e77785f16bb], F_00_00);
+}
+
+#[test]
+fn _0018() {
+  check!(0, [0x0000020004010208, 0x0010000001000001], [0x800300a040000000, 0x0018680082802400], [0x8003006d0c664c98, 0xcce39b33b599bd9a], F_20_20);
+}
+
+#[test]
+fn _0019() {
+  check!(0, [0x0000064408a94080, 0xffffffff7fffffff], [0x8002888000800040, 0xa00016a400020010], [0x800287df993be033, 0xb999b03da6686676], F_20_20);
+}
+
+#[test]
+fn _0020() {
+  check!(0, [0x0000910104000000, 0xdffdf7ebffffff9f], [0x0030080000240060, 0x6093740152912720], [0x002e5000016803c3, 0xc5c2881412a9121a], F_20_20);
+}
+
+#[test]
+fn _0021() {
+  check!(0, [0x0000c10800050400, 0x0000000000000040], [0x0008000800000000, 0x79ffffffeffeffdf], [0x0002328d999a1bdc, 0x8fffffc17c177f1e], F_20_20);
+}
+
+#[test]
+fn _0022() {
+  check!(0, [0x0001000828000002, 0xfdfffffefffffdfb], [0x000128c044800204, 0x2000200a40000000], [0x000237473e0ccd00, 0xb633366753333300], F_20_20);
+}
+
+#[test]
+fn _0023() {
+  check!(0, [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x0002629b8c891b26, 0x7182b613cccccccd], F_20_20);
+}
+
+#[test]
+fn _0024() {
+  check!(0, [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], F_00_00);
+}
+
+#[test]
+fn _0025() {
+  check!(0, [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x7c003fffffffffff, 0x38c15b08ffffffff], [0x7c00000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0026() {
+  check!(0, [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], F_00_00);
+}
+
+#[test]
+fn _0027() {
+  check!(0, [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x0000000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0028() {
+  check!(0, [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x7c003fffffffffff, 0x38c15b08ffffffff], [0x7c00000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0029() {
+  check!(0, [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x7c003fffffffffff, 0x38c15b0affffffff], [0x7c00000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0030() {
+  check!(0, [0x0002000000000000, 0x4e57c463086d76fc], [0x0000000000000000, 0x75f7dfbf8b4127eb], [0x0000000000000003, 0x85658b9ddf87cdc3], F_00_00);
+}
+
+#[test]
+fn _0031() {
+  check!(0, [0x0002025038800410, 0x0100000000100000], [0x8000033800144c13, 0x03c68221012c3f5e], [0x000013ea34ebdc8d, 0x06397ddeff73c0a2], F_00_00);
+}
+
+#[test]
+fn _0032() {
+  check!(0, [0x0002c47000040650, 0xfff6fffdffdfffff], [0x0000040000000000, 0xac46ec75e0295a33], [0x0002c4d6666a6cb7, 0x7797b13cfcb0ef6a], F_20_20);
+}
+
+#[test]
+fn _0033() {
+  check!(0, [0x0004200080040000, 0xdbef7abfffd7bfff], [0x0000000000000000, 0x7bfffffdfffebf9f], [0x0003400500280008, 0xa3c131e631a09320], F_20_20);
+}
+
+#[test]
+fn _0034() {
+  check!(0, [0x0004701090648021, 0x72ad0c485e796963], [0x0000000000000000, 0x0000020028140000], [0x0004701090648021, 0x72ad0c4d7d9854e8], F_20_20);
+}
+
+#[test]
+fn _0035() {
+  check!(0, [0x0009000002080300, 0x415686c8259c1f86], [0x8008081481000000, 0x9642b65b40a018ca], [0x0008f7eb810802ff, 0xab13d06ce4fc06bc], F_00_00);
+}
+
+#[test]
+fn _0036() {
+  check!(0, [0x0010000000000000, 0xfff7fbfeafffffdf], [0x6000c1d51b4e93c9, 0x09bf3511b5ce6975], [0x00020000009891b8, 0xe8ddba77ec549980], F_00_00);
+}
+
+#[test]
+fn _0037() {
+  check!(0, [0x0010000008000400, 0xc66e5f0e6e4c75e7], [0x80080a0c5017e616, 0x0000000000000000], [0x800808d3cf7b87ce, 0xc89edc4b75427090], F_00_00);
+}
+
+#[test]
+fn _0038() {
+  check!(0, [0x0010002200100802, 0x2008001100ca2010], [0x0020000000000000, 0x7d0409164401a0f3], [0x0010002202f92eec, 0xcda7af8a36ceb310], F_00_00);
+}
+
+#[test]
+fn _0039() {
+  check!(0, [0x0010240802042000, 0x4000001000088004], [0x00108c244812a208, 0xfffbdbfeaffdfdff], [0x0010b02c4a16c209, 0x3ffbdc0eb0067e03], F_00_00);
+}
+
+#[test]
+fn _0040() {
+  check!(0, [0x0018d00010482028, 0x7ee3f3f9e2f8e01d], [0x00600082000084a0, 0xc733567c3655897e], [0x005c32c80033cecd, 0xd00dc8853969b538], F_20_20);
+}
+
+#[test]
+fn _0041() {
+  check!(0, [0x0020828000000010, 0xcf88020652208000], [0x0000000000000000, 0x0010000000220000], [0x0020828000000010, 0xcf88020652208000], F_20_20);
+}
+
+#[test]
+fn _0042() {
+  check!(0, [0x0022100020000001, 0xf000051104440000], [0x0000000000010000, 0x2d2100c91840cb06], [0x0020a00140000013, 0x600032aa31dcadeb], F_20_20);
+}
+
+#[test]
+fn _0043() {
+  check!(0, [0x0040000000000010, 0xe9ff78174c3776f1], [0x0000000000000000, 0x56f2fcf9ca1139ef], [0x002699d51a0ab077, 0x5709062b0fa8a001], F_20_20);
+}
+
+#[test]
+fn _0044() {
+  check!(0, [0x0042c3060c120840, 0x030a000039015120], [0x000204840079605d, 0x022a424000209030], [0x0042c3060c120840, 0x030a000039015121], F_20_20);
+}
+
+#[test]
+fn _0045() {
+  check!(0, [0x0046000000000000, 0x0000300004000001], [0x0009000080000000, 0xa9250288def74442], [0x001f04357757ab0f, 0xe6c3bad8135cd874], F_20_20);
+}
+
+#[test]
+fn _0046() {
+  check!(0, [0x01090012e0004000, 0x77d8fde799df72c7], [0x010be56d4769821f, 0x269f45de0b5c11b2], [0x010c331a7a056eee, 0xa3c7db721ed5ae70], F_20_20);
+}
+
+#[test]
+fn _0047() {
+  check!(0, [0x0218002054140810, 0x7ddcf0a7626a78b1], [0x1506002a0a00a840, 0xbd0ccd70841ed9a5], [0x1500a43712913ce2, 0x7a027f8418822c88], F_20_20);
+}
+
+#[test]
+fn _0048() {
+  check!(0, [0x0fd9fefad9460f22, 0xbf188cb59cc2e86f], [0x104200c084a00007, 0xd5efd0836b76cfd4], [0x103e4b33ce80030f, 0x91ad7355fa692ed0], F_00_00);
+}
+
+#[test]
+fn _0049() {
+  check!(0, [0x1392280b19d70c0b, 0x2041039000096101], [0xf65addcfbf5fa71d, 0xe3dfffffb7fdfebf], [0x1392280b19d70c0b, 0x2041039000096101], F_00_00);
+}
+
+#[test]
+fn _0050() {
+  check!(0, [0x1b89600501027080, 0x31000a54db202481], [0x2000000000000000, 0x05001420c300c265], [0x1fe0b1a58745a3ee, 0xb187f95659250000], F_20_20);
+}
+
+#[test]
+fn _0051() {
+  check!(0, [0x1c4dddec6a7a1c60, 0xfb50c15771b095e3], [0x7c000fea63a9224b, 0x3d4501def3959458], [0x7c000fea63a9224b, 0x3d4501def3959458], F_00_00);
+}
+
+#[test]
+fn _0052() {
+  check!(0, [0x1e5fffaa4f778d66, 0x8638a51f121c7501], [0x2f5143fc06ccef43, 0xfe74ffcbfb1bf955], [0x2f5143fc06ccef43, 0xfe74ffcbfb1bf955], F_00_00);
+}
+
+#[test]
+fn _0053() {
+  check!(0, [0x2002000108002000, 0xfffbfffbfffeffff], [0x9ffddf5a3d0bae3a, 0xfeeffefff6fba9ec], [0x9ffddb52fc8eaa53, 0x0e900e9ffae3add4], F_00_00);
+}
+
+#[test]
+fn _0054() {
+  check!(0, [0x2840000000000000, 0x0000000000000000], [0x59364b22e2d719b8, 0xfc26061748ffb476], [0x59364b22e2d719b8, 0xfc26061748ffb476], F_00_00);
+}
+
+#[test]
+fn _0055() {
+  check!(0, [0x287d9153bfab1034, 0xffffffffffffffff], [0x2838ffa84c36170b, 0x48d13d861726ad32], [0x287d9153bfab1035, 0x0000000000000000], F_20_20);
+}
+
+#[test]
+fn _0056() {
+  check!(0, [0x2ad6d9d6d46be91c, 0xa79f9078ce846e2a], [0x5a231792da18902d, 0xfa74ba0bb2f2a9d2], [0x5a231792da18902d, 0xfa74ba0bb2f2a9d2], F_20_20);
+}
+
+#[test]
+fn _0057() {
+  check!(0, [0x2b4ed27250ae5929, 0x81da062276e0d757], [0xfe000aca05f2778b, 0x5f0172fb73aa63b4], [0xfc000aca05f2778b, 0x5f0172fb73aa63b4], F_01_01);
+}
+
+#[test]
+fn _0058() {
+  check!(0, [0x38a8000000000000, 0x0000000000000000], [0x5489c7f28d0c759c, 0x797749662afbfd8c], [0x5489c7f28d0c759c, 0x797749662afbfd8c], F_00_00);
+}
+
+#[test]
+fn _0059() {
+  check!(0, [0x3995cbcb047d4fa7, 0xba8b599a2b9a29b0], [0xb954de8830f75de3, 0x15dba9afc74d2e9d], [0x3995cbcb047d4fa7, 0xba8b599a2b9a2983], F_20_20);
+}
+
+#[test]
+fn _0060() {
+  check!(0, [0x3ace37c3c58167a3, 0xdeeb321af15fa934], [0xfbbfc1edffbfaed3, 0x156f000680a4da4d], [0xf800000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0061() {
+  check!(0, [0x4000000000000000, 0x0000000400880000], [0xbcfd37a9d788c874, 0x0000000000000000], [0x3fd254bf4b08ff5b, 0x89d2f40000000000], F_20_20);
+}
+
+#[test]
+fn _0062() {
+  check!(0, [0x4010010181c34860, 0xfdff7fffff6fbffd], [0xbfefdffffffef9df, 0x47110206edc04446], [0x400c6496b04845e2, 0xb0b25ad84a69a9a1], F_20_20);
+}
+
+#[test]
+fn _0063() {
+  check!(0, [0x440240000b453910, 0xba32b0a371116c10], [0xc41956990f59b903, 0xd01704083ce3e1d7], [0xc41956990f59b644, 0x1f9ee97f259182d9], F_20_20);
+}
+
+#[test]
+fn _0064() {
+  check!(0, [0x5427fa3453dd57e0, 0x2d7637578567237b], [0x753212496f15732f, 0xb7c2f13c3f832325], [0x5426000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0065() {
+  check!(0, [0x5bd3458aeeff6752, 0x5c9f9a12f343e352], [0xd00e000000000000, 0x0000000000000000], [0x5bd3458aeeff6752, 0x5c9f9a12f343e352], F_00_00);
+}
+
+#[test]
+fn _0066() {
+  check!(0, [0x5bfa8cbdca7fcb87, 0x648dc41959d132d0], [0x0000000000000000, 0xff39bfddedf3ee57], [0x5bfa8cbdca7fcb87, 0x648dc41959d132d0], F_20_20);
+}
+
+#[test]
+fn _0067() {
+  check!(0, [0x5d96fd0743f21d05, 0xb7a1ffdfb7773fef], [0x0000000000000000, 0x0001041400020049], [0x5d96fd0743f21d05, 0xb7a1ffdfb7773fef], F_20_20);
+}
+
+#[test]
+fn _0068() {
+  check!(0, [0x5f1e000000000000, 0x0000000000000000], [0xd74b90398df0d280, 0x0b222a8e8514f3ee], [0xd74b90398df0d280, 0x0b222a8e8514f3ee], F_00_00);
+}
+
+#[test]
+fn _0069() {
+  check!(0, [0x60c576c216be289c, 0x96014a8de04ea49c], [0xaa2405ca2fd85dcb, 0xfe1240c113db4074], [0xaa2239e5de73a9f7, 0xecb6878ac6908488], F_00_00);
+}
+
+#[test]
+fn _0070() {
+  check!(0, [0x60cdd8bdc022ddeb, 0xf3d7fffb6ffdddbf], [0x1800000000000000, 0x0201080000000240], [0x17e047328809853f, 0x57efa17b72400000], F_00_00);
+}
+
+#[test]
+fn _0071() {
+  check!(0, [0x6db0895fbd218a59, 0x479097715441cb4b], [0xf7efffdffffffff6, 0xc6a9b3d5b6ebfba9], [0x36c2000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0072() {
+  check!(0, [0x73f27f9b3729b021, 0x42cfe66b6de3fd07], [0x1b7b8a5727f02fa8, 0xe5a78e7d04a3355c], [0x1b7b8a5727f02fa8, 0xe5a78e7d04a3355c], F_00_00);
+}
+
+#[test]
+fn _0073() {
+  check!(0, [0x796032cbd6307a4a, 0xf0cf042fc41e34c2], [0xfb7bdb7ffbe77ffb, 0xd5fdff9afcdfaa4d], [0x7c00000000000000, 0x0000000000000000], F_01_01);
+}
+
+#[test]
+fn _0074() {
+  check!(0, [0x7c003fffffffffff, 0x38c15b08ffffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x7c00000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0075() {
+  check!(0, [0x7c003fffffffffff, 0x38c15b08ffffffff], [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x7c00000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0076() {
+  check!(0, [0x7c003fffffffffff, 0x38c15b08ffffffff], [0x7c003fffffffffff, 0x38c15b08ffffffff], [0x7c00000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0077() {
+  check!(0, [0x7c003fffffffffff, 0x38c15b08ffffffff], [0x7c003fffffffffff, 0x38c15b0affffffff], [0x7c00000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0078() {
+  check!(0, [0x7c003fffffffffff, 0x38c15b0affffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x7c00000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0079() {
+  check!(0, [0x7c003fffffffffff, 0x38c15b0affffffff], [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x7c00000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0080() {
+  check!(0, [0x7c003fffffffffff, 0x38c15b0affffffff], [0x7c003fffffffffff, 0x38c15b08ffffffff], [0x7c00000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0081() {
+  check!(0, [0x7c003fffffffffff, 0x38c15b0affffffff], [0x7c003fffffffffff, 0x38c15b0affffffff], [0x7c00000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0082() {
+  check!(0, [0x7c36d997f8b0b059, 0x7ae13e777a16f050], [0x8bb6f1a6e3a3bd1a, 0xe424521a46fdc6d1], [0x7c001997f8b0b059, 0x7ae13e777a16f050], F_00_00);
+}
+
+#[test]
+fn _0083() {
+  check!(0, [0x7d10b0e971a5f461, 0x4d85007ab72ecfeb], [0xfffbfffffedacced, 0x7ffcfbfffbffebdd], [0x7c0030e971a5f461, 0x4d85007ab72ecfeb], F_01_01);
+}
+
+#[test]
+fn _0084() {
+  check!(0, [0x7e0006dd5267cd43, 0x7cd23844b6d6a4ea], [0x9f65abe576e0df8e, 0x4506a13d63599947], [0x7c0006dd5267cd43, 0x7cd23844b6d6a4ea], F_01_01);
+}
+
+#[test]
+fn _0085() {
+  check!(0, [0x7e00149c7f5e6b77, 0x3ff5188ebbb4795a], [0x37fe000000000000, 0x0000000000000000], [0x7c00149c7f5e6b77, 0x3ff5188ebbb4795a], F_01_01);
+}
+
+#[test]
+fn _0086() {
+  check!(0, [0x7e002cf4e6e4ac9d, 0xab55920b2c709cec], [0x7800000000000000, 0x0000000000000000], [0x7c002cf4e6e4ac9d, 0xab55920b2c709cec], F_01_01);
+}
+
+#[test]
+fn _0087() {
+  check!(0, [0x7ffff7ffffffffff, 0x9de20851b887be40], [0x960f4d1c81ebee82, 0xa07b5e241da76150], [0x7c00000000000000, 0x0000000000000000], F_01_01);
+}
+
+#[test]
+fn _0088() {
+  check!(0, [0x8000015004000002, 0xffffffffffffcfff], [0x0040830502000080, 0x553debe2f9cc3fd5], [0x0040830502000080, 0x553debe2f9cc3fd5], F_20_20);
+}
+
+#[test]
+fn _0089() {
+  check!(0, [0x8000400080402000, 0xffe7fffffffbffff], [0x0000110a21084001, 0x0840000200000800], [0x80002ef65f37dfff, 0xf7a7fffdfffbf7ff], F_00_00);
+}
+
+#[test]
+fn _0090() {
+  check!(0, [0x80022000095c0190, 0x0410200010660020], [0x0000010008008009, 0x05a7b07ad6480e74], [0x80013f0055978f97, 0x22f98f85cdb3f2cc], F_00_00);
+}
+
+#[test]
+fn _0091() {
+  check!(0, [0x8010000000800111, 0x8498563480440020], [0x0000489100040120, 0x9a1b9d433d9f9e78], [0x8002450a2fd3ed30, 0x480a760e2082d9c1], F_20_20);
+}
+
+#[test]
+fn _0092() {
+  check!(0, [0x80c4406dc0588060, 0xb2fdbf3bdb5ff6dd], [0x00c00898001a2c83, 0x840d29ad07020d26], [0x80c44057c0583d5f, 0x624f890e9b4e0618], F_20_20);
+}
+
+#[test]
+fn _0093() {
+  check!(0, [0x8120010573c46493, 0x016006c040d09002], [0xe047ff59432e7f32, 0xff7ff7bfdffaafb6], [0x811e0a3685abedbe, 0x0dc043828825a014], F_00_00);
+}
+
+#[test]
+fn _0094() {
+  check!(0, [0x84848448bb86cdea, 0x47a3f05555554266], [0xfe0016d3cfe15dc1, 0x3ab1a1ea168bccd5], [0xfc0016d3cfe15dc1, 0x3ab1a1ea168bccd5], F_01_01);
+}
+
+#[test]
+fn _0095() {
+  check!(0, [0x8b71ea085f350783, 0x80db0ca76e5b0d32], [0xf800000000000000, 0x0000000000000000], [0xf800000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0096() {
+  check!(0, [0x8cc2400a6777e47d, 0xf08a14c25761bb67], [0xff6bfffffff7fffe, 0x3ddfbdf9bbfd7fe7], [0xfc00000000000000, 0x0000000000000000], F_01_01);
+}
+
+#[test]
+fn _0097() {
+  check!(0, [0x9022304806028040, 0x8a92a2103e3c0106], [0x106411e5c230c10c, 0x0221008000010020], [0x1062b2f995e78a78, 0x154a0500000a0136], F_20_20);
+}
+
+#[test]
+fn _0098() {
+  check!(0, [0x9456000000000000, 0x0000000000000000], [0xfe00000000000000, 0x0000000000000000], [0xfc00000000000000, 0x0000000000000000], F_01_01);
+}
+
+#[test]
+fn _0099() {
+  check!(0, [0x988b7659e5f6fef5, 0xbbefd56f4df6eadf], [0x18d094c77aae85e6, 0x097015184038a053], [0x18d094c77aae85e6, 0x097015184038a053], F_20_20);
+}
+
+#[test]
+fn _0100() {
+  check!(0, [0x9cd8000000000000, 0x0000000000000000], [0x16909df1f48b315f, 0x9e82e8740fb93bfd], [0x16909df1f48b315f, 0x9e82e8740fb93bfd], F_00_00);
+}
+
+#[test]
+fn _0101() {
+  check!(0, [0xa1c4000000000000, 0x0000000000000000], [0x5522c0c11492e428, 0xf7d822a92f1a5ef3], [0x5522c0c11492e428, 0xf7d822a92f1a5ef3], F_00_00);
+}
+
+#[test]
+fn _0102() {
+  check!(0, [0xa5675120625b0a35, 0x52d5eeecb6df98df], [0xdf69ff7fefbbff77, 0x0440008082050202], [0xa5675120625b0a35, 0x52d5eeecb6df98df], F_00_00);
+}
+
+#[test]
+fn _0103() {
+  check!(0, [0xa9481e81f1ac7df5, 0x96dcd9baa6738f4a], [0xfe000ded30995e2c, 0x2a18fde4c3b4c242], [0xfc000ded30995e2c, 0x2a18fde4c3b4c242], F_01_01);
+}
+
+#[test]
+fn _0104() {
+  check!(0, [0xab5b7f8969162c5f, 0x9951aecf3b28ba61], [0xfe001538549b96bc, 0xd8bac0361145a524], [0xfc001538549b96bc, 0xd8bac0361145a524], F_01_01);
+}
+
+#[test]
+fn _0105() {
+  check!(0, [0xbee1c676f1afe3cf, 0x09f61de91e262588], [0x561ceab945062f0a, 0x24c48dc78dbedb6a], [0x561ceab945062f0a, 0x24c48dc78dbedb6a], F_20_20);
+}
+
+#[test]
+fn _0106() {
+  check!(0, [0xbffffffffffffff7, 0xf08986080004d1cd], [0x4000004200080002, 0x7ffffdffffffffff], [0x3ffe029400500018, 0xffffebfffffffff6], F_00_00);
+}
+
+#[test]
+fn _0107() {
+  check!(0, [0xc000000000004400, 0x38468869f58dd715], [0x6dd892ebafa7e61e, 0xfbfffff7fefffffe], [0xbfec9e53ab96d2bd, 0x5dba24877575b400], F_00_00);
+}
+
+#[test]
+fn _0108() {
+  check!(0, [0xc0c47de8bb8a81ca, 0xa1571e2bdc47b401], [0x4081000004020000, 0x0000205500000000], [0xc0c47de8bb8a81ca, 0xa1571e2bdc47b400], F_20_20);
+}
+
+#[test]
+fn _0109() {
+  check!(0, [0xc22c376ce5daf960, 0xbd3e3776d9e9504a], [0x0006110100018010, 0xefdf793269fddbd4], [0xc22c376ce5daf960, 0xbd3e3776d9e9504a], F_20_20);
+}
+
+#[test]
+fn _0110() {
+  check!(0, [0xd75c000000000000, 0x0000000000000000], [0x132efa1ddf2a7299, 0x1ec77faa102b45ca], [0x132efa1ddf2a7299, 0x1ec77faa102b45ca], F_00_00);
+}
+
+#[test]
+fn _0111() {
+  check!(0, [0xdb38f659937507f2, 0x52e4eff58d12043f], [0x7e7116ffb6ec8cf7, 0x09108044000080c5], [0x7c0016ffb6ec8cf7, 0x09108044000080c5], F_01_01);
+}
+
+#[test]
+fn _0112() {
+  check!(0, [0xdcafa178675629f3, 0xf3c9d62ab84aa7c4], [0x5cd45cf7c92aae7d, 0x48c5a096fa24e498], [0x5cd45cf7c92aae7d, 0x48c29e7e3072303b], F_20_20);
+}
+
+#[test]
+fn _0113() {
+  check!(0, [0xdfff7ffef7f2ffff, 0x8008020011020080], [0xdfff6f5eae73ffef, 0x8040001401410208], [0xf800000000000000, 0x0000000000000000], F_28_28);
+}
+
+#[test]
+fn _0114() {
+  check!(0, [0xe7f4dfff7b6e9c42, 0xff7dfffd2fff7fff], [0x4800000000000000, 0x0000043484020008], [0x47d6e3f607d6ce8a, 0xc923ab6ef5000000], F_00_00);
+}
+
+#[test]
+fn _0115() {
+  check!(0, [0xf5ef6c66d631163c, 0x68f56fcf4f7dad4d], [0xb623ff3fb2fbfd74, 0x5b07b2a2f292df1e], [0xb622000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0116() {
+  check!(0, [0xf800000000000000, 0x0000000000000000], [0x2ca1915e9c65355f, 0x6a9dd26fcb0633ae], [0xf800000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0117() {
+  check!(0, [0xfbffff7dfdfffff5, 0xbfecfa9fff6ef7fe], [0xfa8cecc783de4f64, 0xf014aefd02ac1108], [0xf800000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0118() {
+  check!(0, [0xfe00000000000000, 0x0000000000000000], [0x1f0cabc46692f05e, 0x44e49d8f9551660c], [0xfc00000000000000, 0x0000000000000000], F_01_01);
+}
+
+#[test]
+fn _0119() {
+  check!(1, [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x0002629b8c891b26, 0x7182b613cccccccc], F_20_20);
+}
+
+#[test]
+fn _0120() {
+  check!(1, [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], F_00_00);
+}
+
+#[test]
+fn _0121() {
+  check!(1, [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], F_00_00);
+}
+
+#[test]
+fn _0122() {
+  check!(1, [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x0000000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0123() {
+  check!(1, [0x1c4dddec6a7a1c60, 0xfb50c15771b095e3], [0x7c000fea63a9224b, 0x3d4501def3959458], [0x7c000fea63a9224b, 0x3d4501def3959458], F_00_00);
+}
+
+#[test]
+fn _0124() {
+  check!(1, [0x2840000000000000, 0x0000000000000000], [0x59364b22e2d719b8, 0xfc26061748ffb476], [0x59364b22e2d719b8, 0xfc26061748ffb476], F_00_00);
+}
+
+#[test]
+fn _0125() {
+  check!(1, [0x2b4ed27250ae5929, 0x81da062276e0d757], [0xfe000aca05f2778b, 0x5f0172fb73aa63b4], [0xfc000aca05f2778b, 0x5f0172fb73aa63b4], F_01_01);
+}
+
+#[test]
+fn _0126() {
+  check!(1, [0x38a8000000000000, 0x0000000000000000], [0x5489c7f28d0c759c, 0x797749662afbfd8c], [0x5489c7f28d0c759c, 0x797749662afbfd8c], F_00_00);
+}
+
+#[test]
+fn _0127() {
+  check!(1, [0x5bd3458aeeff6752, 0x5c9f9a12f343e352], [0xd00e000000000000, 0x0000000000000000], [0x5bd3458aeeff6752, 0x5c9f9a12f343e352], F_00_00);
+}
+
+#[test]
+fn _0128() {
+  check!(1, [0x5f1e000000000000, 0x0000000000000000], [0xd74b90398df0d280, 0x0b222a8e8514f3ee], [0xd74b90398df0d280, 0x0b222a8e8514f3ee], F_00_00);
+}
+
+#[test]
+fn _0129() {
+  check!(1, [0x6db0895fbd218a59, 0x479097715441cb4b], [0xf7efffdffffffff6, 0xc6a9b3d5b6ebfba9], [0xb6c2000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0130() {
+  check!(1, [0x7e0006dd5267cd43, 0x7cd23844b6d6a4ea], [0x9f65abe576e0df8e, 0x4506a13d63599947], [0x7c0006dd5267cd43, 0x7cd23844b6d6a4ea], F_01_01);
+}
+
+#[test]
+fn _0131() {
+  check!(1, [0x7e00149c7f5e6b77, 0x3ff5188ebbb4795a], [0x37fe000000000000, 0x0000000000000000], [0x7c00149c7f5e6b77, 0x3ff5188ebbb4795a], F_01_01);
+}
+
+#[test]
+fn _0132() {
+  check!(1, [0x7e002cf4e6e4ac9d, 0xab55920b2c709cec], [0x7800000000000000, 0x0000000000000000], [0x7c002cf4e6e4ac9d, 0xab55920b2c709cec], F_01_01);
+}
+
+#[test]
+fn _0133() {
+  check!(1, [0x84848448bb86cdea, 0x47a3f05555554266], [0xfe0016d3cfe15dc1, 0x3ab1a1ea168bccd5], [0xfc0016d3cfe15dc1, 0x3ab1a1ea168bccd5], F_01_01);
+}
+
+#[test]
+fn _0134() {
+  check!(1, [0x8b71ea085f350783, 0x80db0ca76e5b0d32], [0xf800000000000000, 0x0000000000000000], [0xf800000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0135() {
+  check!(1, [0x9456000000000000, 0x0000000000000000], [0xfe00000000000000, 0x0000000000000000], [0xfc00000000000000, 0x0000000000000000], F_01_01);
+}
+
+#[test]
+fn _0136() {
+  check!(1, [0x9cd8000000000000, 0x0000000000000000], [0x16909df1f48b315f, 0x9e82e8740fb93bfd], [0x16909df1f48b315f, 0x9e82e8740fb93bfd], F_00_00);
+}
+
+#[test]
+fn _0137() {
+  check!(1, [0xa1c4000000000000, 0x0000000000000000], [0x5522c0c11492e428, 0xf7d822a92f1a5ef3], [0x5522c0c11492e428, 0xf7d822a92f1a5ef3], F_00_00);
+}
+
+#[test]
+fn _0138() {
+  check!(1, [0xa9481e81f1ac7df5, 0x96dcd9baa6738f4a], [0xfe000ded30995e2c, 0x2a18fde4c3b4c242], [0xfc000ded30995e2c, 0x2a18fde4c3b4c242], F_01_01);
+}
+
+#[test]
+fn _0139() {
+  check!(1, [0xab5b7f8969162c5f, 0x9951aecf3b28ba61], [0xfe001538549b96bc, 0xd8bac0361145a524], [0xfc001538549b96bc, 0xd8bac0361145a524], F_01_01);
+}
+
+#[test]
+fn _0140() {
+  check!(1, [0xb4aa76100d8209a4, 0x1e2b14bb6e5f767f], [0x3c471d89c66add61, 0x3f08dd78ee62f56f], [0x3c471d89c66add61, 0x3f08dd78ee62f56e], F_20_20);
+}
+
+#[test]
+fn _0141() {
+  check!(1, [0xbee1c676f1afe3cf, 0x09f61de91e262588], [0x561ceab945062f0a, 0x24c48dc78dbedb6a], [0x561ceab945062f0a, 0x24c48dc78dbedb69], F_20_20);
+}
+
+#[test]
+fn _0142() {
+  check!(1, [0xc884367ed0de6951, 0xffffffffffffffff], [0x8c811be268d6f9a0, 0x5916aa0ba9e7dc22], [0xc884367ed0de6952, 0x0000000000000000], F_20_20);
+}
+
+#[test]
+fn _0143() {
+  check!(1, [0xd75c000000000000, 0x0000000000000000], [0x132efa1ddf2a7299, 0x1ec77faa102b45ca], [0x132efa1ddf2a7299, 0x1ec77faa102b45ca], F_00_00);
+}
+
+#[test]
+fn _0144() {
+  check!(1, [0xf800000000000000, 0x0000000000000000], [0x2ca1915e9c65355f, 0x6a9dd26fcb0633ae], [0xf800000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0145() {
+  check!(1, [0xfe00000000000000, 0x0000000000000000], [0x1f0cabc46692f05e, 0x44e49d8f9551660c], [0xfc00000000000000, 0x0000000000000000], F_01_01);
+}
+
+#[test]
+fn _0146() {
+  check!(2, [0x00008420a0000200, 0x0a80008002a35040], [0x8045c945a31d6f32, 0x8cb7a8b66cfac3fd], [0x8045c945a31d6f32, 0x8cb7a8b66cfac3fc], F_20_20);
+}
+
+#[test]
+fn _0147() {
+  check!(2, [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x0002629b8c891b26, 0x7182b613cccccccd], F_20_20);
+}
+
+#[test]
+fn _0148() {
+  check!(2, [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], F_00_00);
+}
+
+#[test]
+fn _0149() {
+  check!(2, [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], F_00_00);
+}
+
+#[test]
+fn _0150() {
+  check!(2, [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x0000000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0151() {
+  check!(2, [0x0018d00010482028, 0x7ee3f3f9e2f8e01d], [0x00600082000084a0, 0xc733567c3655897e], [0x005c32c80033cecd, 0xd00dc8853969b539], F_20_20);
+}
+
+#[test]
+fn _0152() {
+  check!(2, [0x1c4dddec6a7a1c60, 0xfb50c15771b095e3], [0x7c000fea63a9224b, 0x3d4501def3959458], [0x7c000fea63a9224b, 0x3d4501def3959458], F_00_00);
+}
+
+#[test]
+fn _0153() {
+  check!(2, [0x2840000000000000, 0x0000000000000000], [0x59364b22e2d719b8, 0xfc26061748ffb476], [0x59364b22e2d719b8, 0xfc26061748ffb476], F_00_00);
+}
+
+#[test]
+fn _0154() {
+  check!(2, [0x2ad6d9d6d46be91c, 0xa79f9078ce846e2a], [0x5a231792da18902d, 0xfa74ba0bb2f2a9d2], [0x5a231792da18902d, 0xfa74ba0bb2f2a9d3], F_20_20);
+}
+
+#[test]
+fn _0155() {
+  check!(2, [0x2b4ed27250ae5929, 0x81da062276e0d757], [0xfe000aca05f2778b, 0x5f0172fb73aa63b4], [0xfc000aca05f2778b, 0x5f0172fb73aa63b4], F_01_01);
+}
+
+#[test]
+fn _0156() {
+  check!(2, [0x38a8000000000000, 0x0000000000000000], [0x5489c7f28d0c759c, 0x797749662afbfd8c], [0x5489c7f28d0c759c, 0x797749662afbfd8c], F_00_00);
+}
+
+#[test]
+fn _0157() {
+  check!(2, [0x42425fc86bc44103, 0x60dac4d2074b5f1e], [0x4286719aa03a2cb2, 0xffffffffffffffff], [0x4286719aa03a2cb3, 0x0000000000000000], F_20_20);
+}
+
+#[test]
+fn _0158() {
+  check!(2, [0x5bd3458aeeff6752, 0x5c9f9a12f343e352], [0xd00e000000000000, 0x0000000000000000], [0x5bd3458aeeff6752, 0x5c9f9a12f343e352], F_00_00);
+}
+
+#[test]
+fn _0159() {
+  check!(2, [0x5f1e000000000000, 0x0000000000000000], [0xd74b90398df0d280, 0x0b222a8e8514f3ee], [0xd74b90398df0d280, 0x0b222a8e8514f3ee], F_00_00);
+}
+
+#[test]
+fn _0160() {
+  check!(2, [0x7e0006dd5267cd43, 0x7cd23844b6d6a4ea], [0x9f65abe576e0df8e, 0x4506a13d63599947], [0x7c0006dd5267cd43, 0x7cd23844b6d6a4ea], F_01_01);
+}
+
+#[test]
+fn _0161() {
+  check!(2, [0x7e00149c7f5e6b77, 0x3ff5188ebbb4795a], [0x37fe000000000000, 0x0000000000000000], [0x7c00149c7f5e6b77, 0x3ff5188ebbb4795a], F_01_01);
+}
+
+#[test]
+fn _0162() {
+  check!(2, [0x7e002cf4e6e4ac9d, 0xab55920b2c709cec], [0x7800000000000000, 0x0000000000000000], [0x7c002cf4e6e4ac9d, 0xab55920b2c709cec], F_01_01);
+}
+
+#[test]
+fn _0163() {
+  check!(2, [0x80236f1181464c67, 0x5f86f5a3d472ea30], [0x0000000000000000, 0x008c865000000001], [0x80236f1181464c67, 0x5f86f5a3d472ea2f], F_20_20);
+}
+
+#[test]
+fn _0164() {
+  check!(2, [0x84848448bb86cdea, 0x47a3f05555554266], [0xfe0016d3cfe15dc1, 0x3ab1a1ea168bccd5], [0xfc0016d3cfe15dc1, 0x3ab1a1ea168bccd5], F_01_01);
+}
+
+#[test]
+fn _0165() {
+  check!(2, [0x8b71ea085f350783, 0x80db0ca76e5b0d32], [0xf800000000000000, 0x0000000000000000], [0xf800000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0166() {
+  check!(2, [0x9456000000000000, 0x0000000000000000], [0xfe00000000000000, 0x0000000000000000], [0xfc00000000000000, 0x0000000000000000], F_01_01);
+}
+
+#[test]
+fn _0167() {
+  check!(2, [0x9cd8000000000000, 0x0000000000000000], [0x16909df1f48b315f, 0x9e82e8740fb93bfd], [0x16909df1f48b315f, 0x9e82e8740fb93bfd], F_00_00);
+}
+
+#[test]
+fn _0168() {
+  check!(2, [0xa1c4000000000000, 0x0000000000000000], [0x5522c0c11492e428, 0xf7d822a92f1a5ef3], [0x5522c0c11492e428, 0xf7d822a92f1a5ef3], F_00_00);
+}
+
+#[test]
+fn _0169() {
+  check!(2, [0xa9481e81f1ac7df5, 0x96dcd9baa6738f4a], [0xfe000ded30995e2c, 0x2a18fde4c3b4c242], [0xfc000ded30995e2c, 0x2a18fde4c3b4c242], F_01_01);
+}
+
+#[test]
+fn _0170() {
+  check!(2, [0xab5b7f8969162c5f, 0x9951aecf3b28ba61], [0xfe001538549b96bc, 0xd8bac0361145a524], [0xfc001538549b96bc, 0xd8bac0361145a524], F_01_01);
+}
+
+#[test]
+fn _0171() {
+  check!(2, [0xbee1c676f1afe3cf, 0x09f61de91e262588], [0x561ceab945062f0a, 0x24c48dc78dbedb6a], [0x561ceab945062f0a, 0x24c48dc78dbedb6a], F_20_20);
+}
+
+#[test]
+fn _0172() {
+  check!(2, [0xc850828208860480, 0x0000000000000000], [0x1000180002000000, 0x70b7486738c0cf39], [0xc85082820886047f, 0xffffffffffffffff], F_20_20);
+}
+
+#[test]
+fn _0173() {
+  check!(2, [0xd75c000000000000, 0x0000000000000000], [0x132efa1ddf2a7299, 0x1ec77faa102b45ca], [0x132efa1ddf2a7299, 0x1ec77faa102b45ca], F_00_00);
+}
+
+#[test]
+fn _0174() {
+  check!(2, [0xf800000000000000, 0x0000000000000000], [0x2ca1915e9c65355f, 0x6a9dd26fcb0633ae], [0xf800000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0175() {
+  check!(2, [0xfe00000000000000, 0x0000000000000000], [0x1f0cabc46692f05e, 0x44e49d8f9551660c], [0xfc00000000000000, 0x0000000000000000], F_01_01);
+}
+
+#[test]
+fn _0176() {
+  check!(3, [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x0002629b8c891b26, 0x7182b613cccccccc], F_20_20);
+}
+
+#[test]
+fn _0177() {
+  check!(3, [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], F_00_00);
+}
+
+#[test]
+fn _0178() {
+  check!(3, [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], F_00_00);
+}
+
+#[test]
+fn _0179() {
+  check!(3, [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x0000000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0180() {
+  check!(3, [0x1c4dddec6a7a1c60, 0xfb50c15771b095e3], [0x7c000fea63a9224b, 0x3d4501def3959458], [0x7c000fea63a9224b, 0x3d4501def3959458], F_00_00);
+}
+
+#[test]
+fn _0181() {
+  check!(3, [0x2840000000000000, 0x0000000000000000], [0x59364b22e2d719b8, 0xfc26061748ffb476], [0x59364b22e2d719b8, 0xfc26061748ffb476], F_00_00);
+}
+
+#[test]
+fn _0182() {
+  check!(3, [0x2b4ed27250ae5929, 0x81da062276e0d757], [0xfe000aca05f2778b, 0x5f0172fb73aa63b4], [0xfc000aca05f2778b, 0x5f0172fb73aa63b4], F_01_01);
+}
+
+#[test]
+fn _0183() {
+  check!(3, [0x38a8000000000000, 0x0000000000000000], [0x5489c7f28d0c759c, 0x797749662afbfd8c], [0x5489c7f28d0c759c, 0x797749662afbfd8c], F_00_00);
+}
+
+#[test]
+fn _0184() {
+  check!(3, [0x5bd3458aeeff6752, 0x5c9f9a12f343e352], [0xd00e000000000000, 0x0000000000000000], [0x5bd3458aeeff6752, 0x5c9f9a12f343e352], F_00_00);
+}
+
+#[test]
+fn _0185() {
+  check!(3, [0x5f1e000000000000, 0x0000000000000000], [0xd74b90398df0d280, 0x0b222a8e8514f3ee], [0xd74b90398df0d280, 0x0b222a8e8514f3ee], F_00_00);
+}
+
+#[test]
+fn _0186() {
+  check!(3, [0x7e0006dd5267cd43, 0x7cd23844b6d6a4ea], [0x9f65abe576e0df8e, 0x4506a13d63599947], [0x7c0006dd5267cd43, 0x7cd23844b6d6a4ea], F_01_01);
+}
+
+#[test]
+fn _0187() {
+  check!(3, [0x7e00149c7f5e6b77, 0x3ff5188ebbb4795a], [0x37fe000000000000, 0x0000000000000000], [0x7c00149c7f5e6b77, 0x3ff5188ebbb4795a], F_01_01);
+}
+
+#[test]
+fn _0188() {
+  check!(3, [0x7e002cf4e6e4ac9d, 0xab55920b2c709cec], [0x7800000000000000, 0x0000000000000000], [0x7c002cf4e6e4ac9d, 0xab55920b2c709cec], F_01_01);
+}
+
+#[test]
+fn _0189() {
+  check!(3, [0x84848448bb86cdea, 0x47a3f05555554266], [0xfe0016d3cfe15dc1, 0x3ab1a1ea168bccd5], [0xfc0016d3cfe15dc1, 0x3ab1a1ea168bccd5], F_01_01);
+}
+
+#[test]
+fn _0190() {
+  check!(3, [0x8b71ea085f350783, 0x80db0ca76e5b0d32], [0xf800000000000000, 0x0000000000000000], [0xf800000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0191() {
+  check!(3, [0x9456000000000000, 0x0000000000000000], [0xfe00000000000000, 0x0000000000000000], [0xfc00000000000000, 0x0000000000000000], F_01_01);
+}
+
+#[test]
+fn _0192() {
+  check!(3, [0x9cd8000000000000, 0x0000000000000000], [0x16909df1f48b315f, 0x9e82e8740fb93bfd], [0x16909df1f48b315f, 0x9e82e8740fb93bfd], F_00_00);
+}
+
+#[test]
+fn _0193() {
+  check!(3, [0xa1c4000000000000, 0x0000000000000000], [0x5522c0c11492e428, 0xf7d822a92f1a5ef3], [0x5522c0c11492e428, 0xf7d822a92f1a5ef3], F_00_00);
+}
+
+#[test]
+fn _0194() {
+  check!(3, [0xa9481e81f1ac7df5, 0x96dcd9baa6738f4a], [0xfe000ded30995e2c, 0x2a18fde4c3b4c242], [0xfc000ded30995e2c, 0x2a18fde4c3b4c242], F_01_01);
+}
+
+#[test]
+fn _0195() {
+  check!(3, [0xab5b7f8969162c5f, 0x9951aecf3b28ba61], [0xfe001538549b96bc, 0xd8bac0361145a524], [0xfc001538549b96bc, 0xd8bac0361145a524], F_01_01);
+}
+
+#[test]
+fn _0196() {
+  check!(3, [0xbee1c676f1afe3cf, 0x09f61de91e262588], [0x561ceab945062f0a, 0x24c48dc78dbedb6a], [0x561ceab945062f0a, 0x24c48dc78dbedb69], F_20_20);
+}
+
+#[test]
+fn _0197() {
+  check!(3, [0xd75c000000000000, 0x0000000000000000], [0x132efa1ddf2a7299, 0x1ec77faa102b45ca], [0x132efa1ddf2a7299, 0x1ec77faa102b45ca], F_00_00);
+}
+
+#[test]
+fn _0198() {
+  check!(3, [0xf800000000000000, 0x0000000000000000], [0x2ca1915e9c65355f, 0x6a9dd26fcb0633ae], [0xf800000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0199() {
+  check!(3, [0xfe00000000000000, 0x0000000000000000], [0x1f0cabc46692f05e, 0x44e49d8f9551660c], [0xfc00000000000000, 0x0000000000000000], F_01_01);
+}
+
+#[test]
+fn _0200() {
+  check!(4, [0x0000000000008000, 0x004910c400000000], [0x5fe5f9ffd9ebcf7f, 0x000404e2000600a0], [0x0000000000008000, 0x004910c400000000], F_00_00);
+}
+
+#[test]
+fn _0201() {
+  check!(4, [0x00008420a0000200, 0x0a80008002a35040], [0x8045c945a31d6f32, 0x8cb7a8b66cfac3fd], [0x8045c945a31d6f32, 0x8cb7a8b66cfac3fd], F_20_20);
+}
+
+#[test]
+fn _0202() {
+  check!(4, [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x0002629b8c891b26, 0x7182b613cccccccd], F_20_20);
+}
+
+#[test]
+fn _0203() {
+  check!(4, [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], F_00_00);
+}
+
+#[test]
+fn _0204() {
+  check!(4, [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], [0x0001ed09bead87c0, 0x378d8e62ffffffff], F_00_00);
+}
+
+#[test]
+fn _0205() {
+  check!(4, [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x0001ed09bead87c0, 0x378d8e64ffffffff], [0x0000000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0206() {
+  check!(4, [0x0020828000000010, 0xcf88020652208000], [0x0000000000000000, 0x0010000000220000], [0x0020828000000010, 0xcf88020652208000], F_20_20);
+}
+
+#[test]
+fn _0207() {
+  check!(4, [0x0022100020000001, 0xf000051104440000], [0x0000000000010000, 0x2d2100c91840cb06], [0x0020a00140000013, 0x600032aa31dcadeb], F_20_20);
+}
+
+#[test]
+fn _0208() {
+  check!(4, [0x1392280b19d70c0b, 0x2041039000096101], [0xf65addcfbf5fa71d, 0xe3dfffffb7fdfebf], [0x1392280b19d70c0b, 0x2041039000096101], F_00_00);
+}
+
+#[test]
+fn _0209() {
+  check!(4, [0x1c4dddec6a7a1c60, 0xfb50c15771b095e3], [0x7c000fea63a9224b, 0x3d4501def3959458], [0x7c000fea63a9224b, 0x3d4501def3959458], F_00_00);
+}
+
+#[test]
+fn _0210() {
+  check!(4, [0x2840000000000000, 0x0000000000000000], [0x59364b22e2d719b8, 0xfc26061748ffb476], [0x59364b22e2d719b8, 0xfc26061748ffb476], F_00_00);
+}
+
+#[test]
+fn _0211() {
+  check!(4, [0x2ad6d9d6d46be91c, 0xa79f9078ce846e2a], [0x5a231792da18902d, 0xfa74ba0bb2f2a9d2], [0x5a231792da18902d, 0xfa74ba0bb2f2a9d2], F_20_20);
+}
+
+#[test]
+fn _0212() {
+  check!(4, [0x2b4ed27250ae5929, 0x81da062276e0d757], [0xfe000aca05f2778b, 0x5f0172fb73aa63b4], [0xfc000aca05f2778b, 0x5f0172fb73aa63b4], F_01_01);
+}
+
+#[test]
+fn _0213() {
+  check!(4, [0x38a8000000000000, 0x0000000000000000], [0x5489c7f28d0c759c, 0x797749662afbfd8c], [0x5489c7f28d0c759c, 0x797749662afbfd8c], F_00_00);
+}
+
+#[test]
+fn _0214() {
+  check!(4, [0x5bd3458aeeff6752, 0x5c9f9a12f343e352], [0xd00e000000000000, 0x0000000000000000], [0x5bd3458aeeff6752, 0x5c9f9a12f343e352], F_00_00);
+}
+
+#[test]
+fn _0215() {
+  check!(4, [0x5f1e000000000000, 0x0000000000000000], [0xd74b90398df0d280, 0x0b222a8e8514f3ee], [0xd74b90398df0d280, 0x0b222a8e8514f3ee], F_00_00);
+}
+
+#[test]
+fn _0216() {
+  check!(4, [0x7e0006dd5267cd43, 0x7cd23844b6d6a4ea], [0x9f65abe576e0df8e, 0x4506a13d63599947], [0x7c0006dd5267cd43, 0x7cd23844b6d6a4ea], F_01_01);
+}
+
+#[test]
+fn _0217() {
+  check!(4, [0x7e00149c7f5e6b77, 0x3ff5188ebbb4795a], [0x37fe000000000000, 0x0000000000000000], [0x7c00149c7f5e6b77, 0x3ff5188ebbb4795a], F_01_01);
+}
+
+#[test]
+fn _0218() {
+  check!(4, [0x7e002cf4e6e4ac9d, 0xab55920b2c709cec], [0x7800000000000000, 0x0000000000000000], [0x7c002cf4e6e4ac9d, 0xab55920b2c709cec], F_01_01);
+}
+
+#[test]
+fn _0219() {
+  check!(4, [0x8000400080402000, 0xffe7fffffffbffff], [0x0000110a21084001, 0x0840000200000800], [0x80002ef65f37dfff, 0xf7a7fffdfffbf7ff], F_00_00);
+}
+
+#[test]
+fn _0220() {
+  check!(4, [0x8010000000800111, 0x8498563480440020], [0x0000489100040120, 0x9a1b9d433d9f9e78], [0x8002450a2fd3ed30, 0x480a760e2082d9c1], F_20_20);
+}
+
+#[test]
+fn _0221() {
+  check!(4, [0x84848448bb86cdea, 0x47a3f05555554266], [0xfe0016d3cfe15dc1, 0x3ab1a1ea168bccd5], [0xfc0016d3cfe15dc1, 0x3ab1a1ea168bccd5], F_01_01);
+}
+
+#[test]
+fn _0222() {
+  check!(4, [0x8b71ea085f350783, 0x80db0ca76e5b0d32], [0xf800000000000000, 0x0000000000000000], [0xf800000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0223() {
+  check!(4, [0x9456000000000000, 0x0000000000000000], [0xfe00000000000000, 0x0000000000000000], [0xfc00000000000000, 0x0000000000000000], F_01_01);
+}
+
+#[test]
+fn _0224() {
+  check!(4, [0x9cd8000000000000, 0x0000000000000000], [0x16909df1f48b315f, 0x9e82e8740fb93bfd], [0x16909df1f48b315f, 0x9e82e8740fb93bfd], F_00_00);
+}
+
+#[test]
+fn _0225() {
+  check!(4, [0xa1c4000000000000, 0x0000000000000000], [0x5522c0c11492e428, 0xf7d822a92f1a5ef3], [0x5522c0c11492e428, 0xf7d822a92f1a5ef3], F_00_00);
+}
+
+#[test]
+fn _0226() {
+  check!(4, [0xa9481e81f1ac7df5, 0x96dcd9baa6738f4a], [0xfe000ded30995e2c, 0x2a18fde4c3b4c242], [0xfc000ded30995e2c, 0x2a18fde4c3b4c242], F_01_01);
+}
+
+#[test]
+fn _0227() {
+  check!(4, [0xab5b7f8969162c5f, 0x9951aecf3b28ba61], [0xfe001538549b96bc, 0xd8bac0361145a524], [0xfc001538549b96bc, 0xd8bac0361145a524], F_01_01);
+}
+
+#[test]
+fn _0228() {
+  check!(4, [0xbee1c676f1afe3cf, 0x09f61de91e262588], [0x561ceab945062f0a, 0x24c48dc78dbedb6a], [0x561ceab945062f0a, 0x24c48dc78dbedb6a], F_20_20);
+}
+
+#[test]
+fn _0229() {
+  check!(4, [0xc0c47de8bb8a81ca, 0xa1571e2bdc47b401], [0x4081000004020000, 0x0000205500000000], [0xc0c47de8bb8a81ca, 0xa1571e2bdc47b400], F_20_20);
+}
+
+#[test]
+fn _0230() {
+  check!(4, [0xd75c000000000000, 0x0000000000000000], [0x132efa1ddf2a7299, 0x1ec77faa102b45ca], [0x132efa1ddf2a7299, 0x1ec77faa102b45ca], F_00_00);
+}
+
+#[test]
+fn _0231() {
+  check!(4, [0xf800000000000000, 0x0000000000000000], [0x2ca1915e9c65355f, 0x6a9dd26fcb0633ae], [0xf800000000000000, 0x0000000000000000], F_00_00);
+}
+
+#[test]
+fn _0232() {
+  check!(4, [0xfe00000000000000, 0x0000000000000000], [0x1f0cabc46692f05e, 0x44e49d8f9551660c], [0xfc00000000000000, 0x0000000000000000], F_01_01);
+}
+
+#[test]
+fn _0233() {
+  check!(4, 0, 0, "-86.96E-6051", "+6262839768259358968798.482E-6125", [0x80bbacbef36ec2d9, 0x53f1ad2e00000000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0234() {
+  check!(4, 0, 0, "-88.E6128", "+1001100110110.E6131", [0x5ffe04ef90e43b13, 0x38b16e0304700000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0235() {
+  check!(4, 0, 0, "-89.689988889E-6076", "-9899.98898989888988898E-6079", [0x80a000000000021b, 0xe0dbab0ddddd0ee2], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0236() {
+  check!(4, 0, 0, "+89797785599559975.97E6141", "-10011100011110110.1111010001E6132", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0237() {
+  check!(4, 0, 0, "-8989899.889889998E6139", "+1010010011101.001000010E6140", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0238() {
+  check!(4, 0, 0, "+8999.88999E4401", "-10.0E4437", [0xd2a9ed09bead87c0, 0x378d8e63fffffff7], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0239() {
+  check!(4, 0, 0, "+8999898889.898889988998988899899988E-6113", "-98.E-6015", [0x8103e32d63d30509, 0x2c33af6200000000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0240() {
+  check!(4, 0, 0, "-911011001111110.01111E-6035", "+7757.85756877599677796689977E-6050", [0x80f5c129c10b6a95, 0xe248c238835bfeb0], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0241() {
+  check!(4, 0, 0, "-9596859585978896957666.8999678658685898E6123", "-855789958.556566566858E6136", [0xf800000000000000, 0x0000000000000000], F_28_28, F_20_00, F_20_00);
+}
+
+#[test]
+fn _0242() {
+  check!(4, 0, 0, "-986.7998E6137", "-28399226863623.4336534472E6122", [0xdffe00013edc83f3, 0x5bce6e5a0186fdd0], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0243() {
+  check!(4, 0, 0, "-9888988988.8899888988E6150", "+88887766666797.9757555E6150", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0244() {
+  check!(4, 0, 0, "+98988.E6140", "+5758859.7585E6137", [0x7800000000000000, 0x0000000000000000], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0245() {
+  check!(4, 0, 0, "+989.89E6147", "-11011101001010.001110000001E6145", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0246() {
+  check!(4, 0, 0, "+98998899988998.899898899998999E6141", "-99898899999898899998999998988899.E6130", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0247() {
+  check!(4, 0, 0, "+9976878.E6138", "+688895688756979657657.6957987659886589697E6123", [0x7800000000000000, 0x0000000000000000], F_28_28, F_00_00, F_20_00);
+}
+
+#[test]
+fn _0248() {
+  check!(4, 0, 0, "-99898888.8899899989989999988898989888E6106", "-58975778987588776588859.6877656E6124", [0xf800000000000000, 0x0000000000000000], F_28_00, F_20_00, F_28_00);
+}
+
+#[test]
+fn _0249() {
+  check!(4, 0, 0, "+9989989898899.999889E6132", "+10100000010000110100111011.1010101101E6119", [0x7800000000000000, 0x0000000000000000], F_28_28, F_00_00, F_20_00);
+}
+
+#[test]
+fn _0250() {
+  check!(4, 0, 0, "+9.9E6144", "+1100010.111001111011011101010E6138", [0x7800000000000000, 0x0000000000000000], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0251() {
+  check!(4, 0, 0, "Infinity", "-0", [0x7800000000000000, 0x0000000000000000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0252() {
+  check!(4, 0, 0, "-Infinity", "Infinity", [0x7c00000000000000, 0x0000000000000000], F_01_01, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0253() {
+  check!(4, 0, 0, "-Infinity", "QNaN", [0x7c00000000000000, 0x0000000000000000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0254() {
+  check!(4, 0, 0, "Infinity", "SNaN", [0x7c00000000000000, 0x0000000000000000], F_01_01, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0255() {
+  check!(4, 0, 0, "QNaN", "-Infinity", [0x7c00000000000000, 0x0000000000000000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0256() {
+  check!(4, 0, 0, "SNaN", "-Infinity", [0x7c00000000000000, 0x0000000000000000], F_01_01, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0257() {
+  check!(0, 0, 0, "0", "QNaN", [0x7c00000000000000, 0x0000000000000000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0258() {
+  check!(0, 0, 0, "+100000000000.000000000011100000E535", "-10.E579", [0xb485ed09bead87c0, 0x378d8e63ffffffff], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0259() {
+  check!(0, 0, 0, "+100000.00000000E6107", "+5695567.598669978987E6134", [0x5ff718d02b771ae1, 0xf14f07d33b7906a0], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0260() {
+  check!(0, 0, 0, "+1001000000000000000000.00000E3899", "-0.001E3958", [0xcee4314dc6448d93, 0x38c15b0a00000000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0261() {
+  check!(0, 0, 0, "+1.00101011001100101E6131", "-98697989675958559.6755E6101", [0x5fe4315a861bf878, 0xb4305be78d569c44], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0262() {
+  check!(0, 0, 0, "-1001100.E6103", "+76675966976599977.8786866E6115", [0x5fee0000f7c0df92, 0xac3e3aec4c25c4b4], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0263() {
+  check!(0, 0, 0, "-1010000000000100.E-6008", "-8.E-6083", [0x812c31cbfe02adbb, 0x651a045de3100000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0264() {
+  check!(0, 0, 0, "+101001100000101.000000E6138", "-7695957767658598867966685688.99E6120", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0265() {
+  check!(0, 0, 0, "+101010111000001011101000100100000010.E6111", "-75.59599E6145", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0266() {
+  check!(0, 0, 0, "-10.11000000110000E6142", "-1010000.10000000E6100", [0xdffc31d89d2f61d1, 0x5c703f2068c00000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0267() {
+  check!(0, 0, 0, "-1011.000011100100000001000110E-6050", "-899998998989888989988.888898898E-6112", [0x80c031d89d38790f, 0xe039a2b1dfc38780], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0268() {
+  check!(0, 0, 0, "+1100111110010000101100.00111E-6148", "-0.E-6012", [0x002e0000005affc2, 0x46f94b02529cdbef], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0269() {
+  check!(0, 0, 0, "+11011000100110.0000001001001111E-6070", "-111100101.001E-6037", [0x80e436c6cde001d1, 0x9539cedba43e51e2], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0270() {
+  check!(0, 0, 0, "+1.10110010100000011010100000E6117", "-0.E6139", [0x5fd60000005b14b3, 0x9baf21a04e72cb20], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0271() {
+  check!(0, 0, 0, "-111110011011.0110000100E6105", "+11000100110.00000110010010E6121", [0x5fe4363c140ab6a4, 0x209184fd9dc6d2d0], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0272() {
+  check!(0, 0, 0, "1E+6110", "-1.000000000000000000000000000000000E+6144", [0xdffded09bead87c0, 0x378d8e63ffffffff], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0273() {
+  check!(0, 0, 0, "-263422633844658.928332597223469897E6134", "+747.E6145", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0274() {
+  check!(0, 0, 0, "+3624659768534336587.96423867374255653E6150", "-10010001111100011101010101110.0110000011E6141", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0275() {
+  check!(0, 0, 0, "+2997.653489948889292735459468782643377E6108", "+9278673824.6482453738329E6133", [0x5ffbc9795419f3c8, 0x9a4a228d118ea92c], F_20_20, F_20_00, F_20_00);
+}
+
+#[test]
+fn _0276() {
+  check!(0, 0, 0, "-394.678E6139", "+55.3696E6105", [0xdff8c2975dfa0314, 0xf5a1f65160000000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0277() {
+  check!(0, 0, 0, "+55689855855588879577565566.7587E6118", "+9988989988.888898899999E6135", [0x7800000000000000, 0x0000000000000000], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0278() {
+  check!(0, 0, 0, "-5.995688758689789876988877865667857E6127", "-8989899999.E6126", [0xdfedbb3c7dbd8ef7, 0x18864a2b3a96360b], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0279() {
+  check!(0, 0, 0, "+6667779.8796559657568566E6121", "-1.E6129", [0xdff200000000c5a3, 0x7f76f1936e1a76ca], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0280() {
+  check!(0, 0, 0, "-67742893945653349875463748543548.9E-6184", "+1100.0100110001101010E-6045", [0x00ca363c140ab6aa, 0x266b6f4aea488000], F_30_20, F_30_00, F_30_00);
+}
+
+#[test]
+fn _0281() {
+  check!(0, 0, 0, "-68488695427246.927E6129", "-999899889999998899988988988888.9E6115", [0xf800000000000000, 0x0000000000000000], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0282() {
+  check!(0, 0, 0, "+7597756576.869587795965598779879969E-6070", "-8.E-6021", [0x80f58a6e32246c99, 0xc60ad85000000000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0283() {
+  check!(0, 0, 0, "-86.96E-6051", "+6262839768259358968798.482E-6125", [0x80bbacbef36ec2d9, 0x53f1ad2e00000000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0284() {
+  check!(0, 0, 0, "-88.E6128", "+1001100110110.E6131", [0x5ffe04ef90e43b13, 0x38b16e0304700000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0285() {
+  check!(0, 0, 0, "-89.689988889E-6076", "-9899.98898989888988898E-6079", [0x80a000000000021b, 0xe0dbab0ddddd0ee2], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0286() {
+  check!(0, 0, 0, "+89797785599559975.97E6141", "-10011100011110110.1111010001E6132", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0287() {
+  check!(0, 0, 0, "-8989899.889889998E6139", "+1010010011101.001000010E6140", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0288() {
+  check!(0, 0, 0, "+8999.88999E4401", "-10.0E4437", [0xd2a9ed09bead87c0, 0x378d8e63fffffff7], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0289() {
+  check!(0, 0, 0, "+8999898889.898889988998988899899988E-6113", "-98.E-6015", [0x8103e32d63d30509, 0x2c33af6200000000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0290() {
+  check!(0, 0, 0, "+899999.899988899889999988888E3058", "-0.001000000000000E3101", [0xc831ed09bead87c0, 0x378d8e63ffffffff], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0291() {
+  check!(0, 0, 0, "-911011001111110.01111E-6035", "+7757.85756877599677796689977E-6050", [0x80f5c129c10b6a95, 0xe248c238835bfeb0], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0292() {
+  check!(0, 0, 0, "-9596859585978896957666.8999678658685898E6123", "-855789958.556566566858E6136", [0xf800000000000000, 0x0000000000000000], F_28_28, F_20_00, F_20_00);
+}
+
+#[test]
+fn _0293() {
+  check!(0, 0, 0, "-986.7998E6137", "-28399226863623.4336534472E6122", [0xdffe00013edc83f3, 0x5bce6e5a0186fdd0], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0294() {
+  check!(0, 0, 0, "-9888988988.8899888988E6150", "+88887766666797.9757555E6150", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0295() {
+  check!(0, 0, 0, "+98988.E6140", "+5758859.7585E6137", [0x7800000000000000, 0x0000000000000000], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0296() {
+  check!(0, 0, 0, "+989.89E6147", "-11011101001010.001110000001E6145", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0297() {
+  check!(0, 0, 0, "+98998899988998.899898899998999E6141", "-99898899999898899998999998988899.E6130", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0298() {
+  check!(0, 0, 0, "+9976878.E6138", "+688895688756979657657.6957987659886589697E6123", [0x7800000000000000, 0x0000000000000000], F_28_28, F_00_00, F_20_00);
+}
+
+#[test]
+fn _0299() {
+  check!(0, 0, 0, "+99888989988898888988999.989998988E-5834", "-10000.000E-5782", [0x82d9ed09bead87c0, 0x378d8e63fffffff6], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0300() {
+  check!(0, 0, 0, "-99898888.8899899989989999988898989888E6106", "-58975778987588776588859.6877656E6124", [0xf800000000000000, 0x0000000000000000], F_28_00, F_20_00, F_28_00);
+}
+
+#[test]
+fn _0301() {
+  check!(0, 0, 0, "+9989989898899.999889E6132", "+10100000010000110100111011.1010101101E6119", [0x7800000000000000, 0x0000000000000000], F_28_28, F_00_00, F_20_00);
+}
+
+#[test]
+fn _0302() {
+  check!(0, 0, 0, "+9.9E6144", "+1100010.111001111011011101010E6138", [0x7800000000000000, 0x0000000000000000], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0303() {
+  check!(0, 0, 0, "-9.E-6155", "-958896965.958776968777978E-6196", [0x80000000000001e7, 0xe4171bf4d3a00000], F_30_00, F_00_00, F_30_00);
+}
+
+#[test]
+fn _0304() {
+  check!(0, 0, 0, "Infinity", "-0", [0x7800000000000000, 0x0000000000000000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0305() {
+  check!(0, 0, 0, "-Infinity", "Infinity", [0x7c00000000000000, 0x0000000000000000], F_01_01, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0306() {
+  check!(0, 0, 0, "-Infinity", "QNaN", [0x7c00000000000000, 0x0000000000000000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0307() {
+  check!(0, 0, 0, "Infinity", "SNaN", [0x7c00000000000000, 0x0000000000000000], F_01_01, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0308() {
+  check!(0, 0, 0, "QNaN", "-Infinity", [0x7c00000000000000, 0x0000000000000000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0309() {
+  check!(0, 0, 0, "SNaN", "-Infinity", [0x7c00000000000000, 0x0000000000000000], F_01_01, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0310() {
+  check!(0, 0, 0, "SNaN", "SNaN", [0x7c00000000000000, 0x0000000000000000], F_01_01, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0311() {
+  check!(1, 0, 0, "0", "QNaN", [0x7c00000000000000, 0x0000000000000000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0312() {
+  check!(1, 0, 0, "+100000.00000000E6107", "+5695567.598669978987E6134", [0x5ff718d02b771ae1, 0xf14f07d33b7906a0], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0313() {
+  check!(1, 0, 0, "+1.00101011001100101E6131", "-98697989675958559.6755E6101", [0x5fe4315a861bf878, 0xb4305be78d569c44], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0314() {
+  check!(1, 0, 0, "-1001100.E6103", "+76675966976599977.8786866E6115", [0x5fee0000f7c0df92, 0xac3e3aec4c25c4b4], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0315() {
+  check!(1, 0, 0, "-1010000000000100.E-6008", "-8.E-6083", [0x812c31cbfe02adbb, 0x651a045de3100001], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0316() {
+  check!(1, 0, 0, "+101001100000101.000000E6138", "-7695957767658598867966685688.99E6120", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0317() {
+  check!(1, 0, 0, "+101010111000001011101000100100000010.E6111", "-75.59599E6145", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0318() {
+  check!(1, 0, 0, "-10.11000000110000E6142", "-1010000.10000000E6100", [0xdffc31d89d2f61d1, 0x5c703f2068c00001], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0319() {
+  check!(1, 0, 0, "-1011.000011100100000001000110E-6050", "-899998998989888989988.888898898E-6112", [0x80c031d89d38790f, 0xe039a2b1dfc38781], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0320() {
+  check!(1, 0, 0, "+1100111110010000101100.00111E-6148", "-0.E-6012", [0x002e0000005affc2, 0x46f94b02529cdbef], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0321() {
+  check!(1, 0, 0, "+11011000100110.0000001001001111E-6070", "-111100101.001E-6037", [0x80e436c6cde001d1, 0x9539cedba43e51e2], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0322() {
+  check!(1, 0, 0, "+1.10110010100000011010100000E6117", "-0.E6139", [0x5fd60000005b14b3, 0x9baf21a04e72cb20], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0323() {
+  check!(1, 0, 0, "-111110011011.0110000100E6105", "+11000100110.00000110010010E6121", [0x5fe4363c140ab6a4, 0x209184fd9dc6d2cf], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0324() {
+  check!(1, 0, 0, "-263422633844658.928332597223469897E6134", "+747.E6145", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0325() {
+  check!(1, 0, 0, "+2997.653489948889292735459468782643377E6108", "+9278673824.6482453738329E6133", [0x5ffbc9795419f3c8, 0x9a4a228d118ea92b], F_20_20, F_20_00, F_20_00);
+}
+
+#[test]
+fn _0326() {
+  check!(1, 0, 0, "+3624659768534336587.96423867374255653E6150", "-10010001111100011101010101110.0110000011E6141", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0327() {
+  check!(1, 0, 0, "-394.678E6139", "+55.3696E6105", [0xdff8c2975dfa0314, 0xf5a1f65160000000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0328() {
+  check!(1, 0, 0, "+55689855855588879577565566.7587E6118", "+9988989988.888898899999E6135", [0x5fffed09bead87c0, 0x378d8e63ffffffff], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0329() {
+  check!(1, 0, 0, "-5.995688758689789876988877865667857E6127", "-8989899999.E6126", [0xdfedbb3c7dbd8ef7, 0x18864a2b3a96360b], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0330() {
+  check!(1, 0, 0, "+6667779.8796559657568566E6121", "-1.E6129", [0xdff200000000c5a3, 0x7f76f1936e1a76ca], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0331() {
+  check!(1, 0, 0, "-67742893945653349875463748543548.9E-6184", "+1100.0100110001101010E-6045", [0x00ca363c140ab6aa, 0x266b6f4aea487fff], F_30_20, F_30_00, F_30_00);
+}
+
+#[test]
+fn _0332() {
+  check!(1, 0, 0, "-68488695427246.927E6129", "-999899889999998899988988988888.9E6115", [0xf800000000000000, 0x0000000000000000], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0333() {
+  check!(1, 0, 0, "+6875897.879876979566658996675E6133", "+8.464777979989329969757976492E6138", [0x5ffe0000f985fe93, 0x59e4745fb3d1594a], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0334() {
+  check!(1, 0, 0, "+7597756576.869587795965598779879969E-6070", "-8.E-6021", [0x80f58a6e32246c99, 0xc60ad85000000000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0335() {
+  check!(1, 0, 0, "-86.96E-6051", "+6262839768259358968798.482E-6125", [0x80bbacbef36ec2d9, 0x53f1ad2e00000000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0336() {
+  check!(1, 0, 0, "-88.E6128", "+1001100110110.E6131", [0x5ffe04ef90e43b13, 0x38b16e0304700000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0337() {
+  check!(1, 0, 0, "-89.689988889E-6076", "-9899.98898989888988898E-6079", [0x80a000000000021b, 0xe0dbab0ddddd0ee2], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0338() {
+  check!(1, 0, 0, "+89797785599559975.97E6141", "-10011100011110110.1111010001E6132", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0339() {
+  check!(1, 0, 0, "-8989899.889889998E6139", "+1010010011101.001000010E6140", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0340() {
+  check!(1, 0, 0, "+8999898889.898889988998988899899988E-6113", "-98.E-6015", [0x8103e32d63d30509, 0x2c33af6200000000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0341() {
+  check!(1, 0, 0, "+899999.899988899889999988888E3058", "-0.001000000000000E3101", [0xc832314dc6448d93, 0x38c15b0a00000000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0342() {
+  check!(1, 0, 0, "-911011001111110.01111E-6035", "+7757.85756877599677796689977E-6050", [0x80f5c129c10b6a95, 0xe248c238835bfeb1], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0343() {
+  check!(1, 0, 0, "-9596859585978896957666.8999678658685898E6123", "-855789958.556566566858E6136", [0xf800000000000000, 0x0000000000000000], F_28_28, F_20_00, F_20_00);
+}
+
+#[test]
+fn _0344() {
+  check!(1, 0, 0, "-986.7998E6137", "-28399226863623.4336534472E6122", [0xdffe00013edc83f3, 0x5bce6e5a0186fdd0], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0345() {
+  check!(1, 0, 0, "-9888988988.8899888988E6150", "+88887766666797.9757555E6150", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0346() {
+  check!(1, 0, 0, "+98988.E6140", "+5758859.7585E6137", [0x5fffed09bead87c0, 0x378d8e63ffffffff], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0347() {
+  check!(1, 0, 0, "+989.89E6147", "-11011101001010.001110000001E6145", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0348() {
+  check!(1, 0, 0, "+98998899988998.899898899998999E6141", "-99898899999898899998999998988899.E6130", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0349() {
+  check!(1, 0, 0, "+9976878.E6138", "+688895688756979657657.6957987659886589697E6123", [0x5fffed09bead87c0, 0x378d8e63ffffffff], F_28_28, F_00_00, F_20_00);
+}
+
+#[test]
+fn _0350() {
+  check!(1, 0, 0, "-99898888.8899899989989999988898989888E6106", "-58975778987588776588859.6877656E6124", [0xf800000000000000, 0x0000000000000000], F_28_00, F_20_00, F_28_00);
+}
+
+#[test]
+fn _0351() {
+  check!(1, 0, 0, "+9989989898899.999889E6132", "+10100000010000110100111011.1010101101E6119", [0x5fffed09bead87c0, 0x378d8e63ffffffff], F_28_28, F_00_00, F_20_00);
+}
+
+#[test]
+fn _0352() {
+  check!(1, 0, 0, "+9.9E6144", "+1100010.111001111011011101010E6138", [0x5fffed09bead87c0, 0x378d8e63ffffffff], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0353() {
+  check!(1, 0, 0, "Infinity", "-0", [0x7800000000000000, 0x0000000000000000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0354() {
+  check!(1, 0, 0, "-Infinity", "Infinity", [0x7c00000000000000, 0x0000000000000000], F_01_01, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0355() {
+  check!(1, 0, 0, "-Infinity", "QNaN", [0x7c00000000000000, 0x0000000000000000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0356() {
+  check!(1, 0, 0, "Infinity", "SNaN", [0x7c00000000000000, 0x0000000000000000], F_01_01, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0357() {
+  check!(1, 0, 0, "QNaN", "-Infinity", [0x7c00000000000000, 0x0000000000000000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0358() {
+  check!(1, 0, 0, "SNaN", "-Infinity", [0x7c00000000000000, 0x0000000000000000], F_01_01, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0359() {
+  check!(1, 0, 0, "SNaN", "SNaN", [0x7c00000000000000, 0x0000000000000000], F_01_01, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0360() {
+  check!(2, 0, 0, "0", "QNaN", [0x7c00000000000000, 0x0000000000000000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0361() {
+  check!(2, 0, 0, "+100000.00000000E6107", "+5695567.598669978987E6134", [0x5ff718d02b771ae1, 0xf14f07d33b7906a0], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0362() {
+  check!(2, 0, 0, "+1.00101011001100101E6131", "-98697989675958559.6755E6101", [0x5fe4315a861bf878, 0xb4305be78d569c45], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0363() {
+  check!(2, 0, 0, "-1001100.E6103", "+76675966976599977.8786866E6115", [0x5fee0000f7c0df92, 0xac3e3aec4c25c4b4], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0364() {
+  check!(2, 0, 0, "-1010000000000100.E-6008", "-8.E-6083", [0x812c31cbfe02adbb, 0x651a045de3100000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0365() {
+  check!(2, 0, 0, "+101001100000101.000000E6138", "-7695957767658598867966685688.99E6120", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0366() {
+  check!(2, 0, 0, "+101010111000001011101000100100000010.E6111", "-75.59599E6145", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0367() {
+  check!(2, 0, 0, "-10.11000000110000E6142", "-1010000.10000000E6100", [0xdffc31d89d2f61d1, 0x5c703f2068c00000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0368() {
+  check!(2, 0, 0, "-1011.000011100100000001000110E-6050", "-899998998989888989988.888898898E-6112", [0x80c031d89d38790f, 0xe039a2b1dfc38780], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0369() {
+  check!(2, 0, 0, "+1100111110010000101100.00111E-6148", "-0.E-6012", [0x002e0000005affc2, 0x46f94b02529cdbef], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0370() {
+  check!(2, 0, 0, "+11011000100110.0000001001001111E-6070", "-111100101.001E-6037", [0x80e436c6cde001d1, 0x9539cedba43e51e1], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0371() {
+  check!(2, 0, 0, "+1.10110010100000011010100000E6117", "-0.E6139", [0x5fd60000005b14b3, 0x9baf21a04e72cb20], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0372() {
+  check!(2, 0, 0, "-111110011011.0110000100E6105", "+11000100110.00000110010010E6121", [0x5fe4363c140ab6a4, 0x209184fd9dc6d2d0], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0373() {
+  check!(2, 0, 0, "1E+367", "9.999999999999999999999999999999999E+6144", [0x7800000000000000, 0x0000000000000000], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0374() {
+  check!(2, 0, 0, "1E+6110", "9.999999999999999999999999999999999E+6144", [0x7800000000000000, 0x0000000000000000], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0375() {
+  check!(2, 0, 0, "-263422633844658.928332597223469897E6134", "+747.E6145", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0376() {
+  check!(2, 0, 0, "+2997.653489948889292735459468782643377E6108", "+9278673824.6482453738329E6133", [0x5ffbc9795419f3c8, 0x9a4a228d118ea92c], F_20_20, F_20_00, F_20_00);
+}
+
+#[test]
+fn _0377() {
+  check!(2, 0, 0, "+3624659768534336587.96423867374255653E6150", "-10010001111100011101010101110.0110000011E6141", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0378() {
+  check!(2, 0, 0, "-394.678E6139", "+55.3696E6105", [0xdff8c2975dfa0314, 0xf5a1f6515fffffff], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0379() {
+  check!(2, 0, 0, "+55689855855588879577565566.7587E6118", "+9988989988.888898899999E6135", [0x7800000000000000, 0x0000000000000000], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0380() {
+  check!(2, 0, 0, "-5.995688758689789876988877865667857E6127", "-8989899999.E6126", [0xdfedbb3c7dbd8ef7, 0x18864a2b3a96360a], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0381() {
+  check!(2, 0, 0, "+6667779.8796559657568566E6121", "-1.E6129", [0xdff200000000c5a3, 0x7f76f1936e1a76ca], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0382() {
+  check!(2, 0, 0, "-67742893945653349875463748543548.9E-6184", "+1100.0100110001101010E-6045", [0x00ca363c140ab6aa, 0x266b6f4aea488000], F_30_20, F_30_00, F_30_00);
+}
+
+#[test]
+fn _0383() {
+  check!(2, 0, 0, "-68488695427246.927E6129", "-999899889999998899988988988888.9E6115", [0xdfffed09bead87c0, 0x378d8e63ffffffff], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0384() {
+  check!(2, 0, 0, "+6875897.879876979566658996675E6133", "+8.464777979989329969757976492E6138", [0x5ffe0000f985fe93, 0x59e4745fb3d1594a], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0385() {
+  check!(2, 0, 0, "+7597756576.869587795965598779879969E-6070", "-8.E-6021", [0x80f58a6e32246c99, 0xc60ad84fffffffff], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0386() {
+  check!(2, 0, 0, "-86.96E-6051", "+6262839768259358968798.482E-6125", [0x80bbacbef36ec2d9, 0x53f1ad2dffffffff], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0387() {
+  check!(2, 0, 0, "-88.E6128", "+1001100110110.E6131", [0x5ffe04ef90e43b13, 0x38b16e0304700000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0388() {
+  check!(2, 0, 0, "-89.689988889E-6076", "-9899.98898989888988898E-6079", [0x80a000000000021b, 0xe0dbab0ddddd0ee2], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0389() {
+  check!(2, 0, 0, "+89797785599559975.97E6141", "-10011100011110110.1111010001E6132", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0390() {
+  check!(2, 0, 0, "-8989899.889889998E6139", "+1010010011101.001000010E6140", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0391() {
+  check!(2, 0, 0, "+8999898889.898889988998988899899988E-6113", "-98.E-6015", [0x8103e32d63d30509, 0x2c33af61ffffffff], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0392() {
+  check!(2, 0, 0, "-911011001111110.01111E-6035", "+7757.85756877599677796689977E-6050", [0x80f5c129c10b6a95, 0xe248c238835bfeb0], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0393() {
+  check!(2, 0, 0, "-9596859585978896957666.8999678658685898E6123", "-855789958.556566566858E6136", [0xdfffed09bead87c0, 0x378d8e63ffffffff], F_28_28, F_20_00, F_20_00);
+}
+
+#[test]
+fn _0394() {
+  check!(2, 0, 0, "-986.7998E6137", "-28399226863623.4336534472E6122", [0xdffe00013edc83f3, 0x5bce6e5a0186fdd0], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0395() {
+  check!(2, 0, 0, "-9888988988.8899888988E6150", "+88887766666797.9757555E6150", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0396() {
+  check!(2, 0, 0, "+98988.E6140", "+5758859.7585E6137", [0x7800000000000000, 0x0000000000000000], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0397() {
+  check!(2, 0, 0, "+989.89E6147", "-11011101001010.001110000001E6145", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0398() {
+  check!(2, 0, 0, "+98998899988998.899898899998999E6141", "-99898899999898899998999998988899.E6130", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0399() {
+  check!(2, 0, 0, "+9976878.E6138", "+688895688756979657657.6957987659886589697E6123", [0x7800000000000000, 0x0000000000000000], F_28_28, F_00_00, F_20_00);
+}
+
+#[test]
+fn _0400() {
+  check!(2, 0, 0, "-99898888.8899899989989999988898989888E6106", "-58975778987588776588859.6877656E6124", [0xf800000000000000, 0x0000000000000000], F_28_00, F_20_00, F_28_00);
+}
+
+#[test]
+fn _0401() {
+  check!(2, 0, 0, "+9989989898899.999889E6132", "+10100000010000110100111011.1010101101E6119", [0x7800000000000000, 0x0000000000000000], F_28_28, F_00_00, F_20_00);
+}
+
+#[test]
+fn _0402() {
+  check!(2, 0, 0, "+9.9E6144", "+1100010.111001111011011101010E6138", [0x7800000000000000, 0x0000000000000000], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0403() {
+  check!(2, 0, 0, "Infinity", "-0", [0x7800000000000000, 0x0000000000000000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0404() {
+  check!(2, 0, 0, "-Infinity", "Infinity", [0x7c00000000000000, 0x0000000000000000], F_01_01, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0405() {
+  check!(2, 0, 0, "-Infinity", "QNaN", [0x7c00000000000000, 0x0000000000000000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0406() {
+  check!(2, 0, 0, "Infinity", "SNaN", [0x7c00000000000000, 0x0000000000000000], F_01_01, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0407() {
+  check!(2, 0, 0, "QNaN", "-Infinity", [0x7c00000000000000, 0x0000000000000000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0408() {
+  check!(2, 0, 0, "SNaN", "-Infinity", [0x7c00000000000000, 0x0000000000000000], F_01_01, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0409() {
+  check!(2, 0, 0, "SNaN", "SNaN", [0x7c00000000000000, 0x0000000000000000], F_01_01, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0410() {
+  check!(3, 0, 0, "0", "QNaN", [0x7c00000000000000, 0x0000000000000000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0411() {
+  check!(3, 0, 0, "+100000.00000000E6107", "+5695567.598669978987E6134", [0x5ff718d02b771ae1, 0xf14f07d33b7906a0], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0412() {
+  check!(3, 0, 0, "+1.00101011001100101E6131", "-98697989675958559.6755E6101", [0x5fe4315a861bf878, 0xb4305be78d569c44], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0413() {
+  check!(3, 0, 0, "-1001100.E6103", "+76675966976599977.8786866E6115", [0x5fee0000f7c0df92, 0xac3e3aec4c25c4b4], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0414() {
+  check!(3, 0, 0, "-1010000000000100.E-6008", "-8.E-6083", [0x812c31cbfe02adbb, 0x651a045de3100000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0415() {
+  check!(3, 0, 0, "+101001100000101.000000E6138", "-7695957767658598867966685688.99E6120", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0416() {
+  check!(3, 0, 0, "+101010111000001011101000100100000010.E6111", "-75.59599E6145", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0417() {
+  check!(3, 0, 0, "-10.11000000110000E6142", " -1010000.10000000E6100", [0xdffc31d89d2f61d1, 0x5c703f2068c00000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0418() {
+  check!(3, 0, 0, "-1011.000011100100000001000110E-6050", "-899998998989888989988.888898898E-6112", [0x80c031d89d38790f, 0xe039a2b1dfc38780], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0419() {
+  check!(3, 0, 0, "+1100111110010000101100.00111E-6148", "-0.E-6012", [0x002e0000005affc2, 0x46f94b02529cdbef], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0420() {
+  check!(3, 0, 0, "+11011000100110.0000001001001111E-6070", "-111100101.001E-6037", [0x80e436c6cde001d1, 0x9539cedba43e51e1], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0421() {
+  check!(3, 0, 0, "+1.10110010100000011010100000E6117", "-0.E6139", [0x5fd60000005b14b3, 0x9baf21a04e72cb20], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0422() {
+  check!(3, 0, 0, "-111110011011.0110000100E6105", "+11000100110.00000110010010E6121", [0x5fe4363c140ab6a4, 0x209184fd9dc6d2cf], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0423() {
+  check!(3, 0, 0, "-263422633844658.928332597223469897E6134", "+747.E6145", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0424() {
+  check!(3, 0, 0, "+2997.653489948889292735459468782643377E6108", "+9278673824.6482453738329E6133", [0x5ffbc9795419f3c8, 0x9a4a228d118ea92b], F_20_20, F_20_00, F_20_00);
+}
+
+#[test]
+fn _0425() {
+  check!(3, 0, 0, "+3624659768534336587.96423867374255653E6150", "-10010001111100011101010101110.0110000011E6141", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0426() {
+  check!(3, 0, 0, "-394.678E6139", "+55.3696E6105", [0xdff8c2975dfa0314, 0xf5a1f6515fffffff], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0427() {
+  check!(3, 0, 0, "+55689855855588879577565566.7587E6118", "+9988989988.888898899999E6135", [0x5fffed09bead87c0, 0x378d8e63ffffffff], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0428() {
+  check!(3, 0, 0, "-5.995688758689789876988877865667857E6127", "-8989899999.E6126", [0xdfedbb3c7dbd8ef7, 0x18864a2b3a96360a], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0429() {
+  check!(3, 0, 0, "+6667779.8796559657568566E6121", "-1.E6129", [0xdff200000000c5a3, 0x7f76f1936e1a76ca], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0430() {
+  check!(3, 0, 0, "-67742893945653349875463748543548.9E-6184", "+1100.0100110001101010E-6045", [0x00ca363c140ab6aa, 0x266b6f4aea487fff], F_30_20, F_30_00, F_30_00);
+}
+
+#[test]
+fn _0431() {
+  check!(3, 0, 0, "-68488695427246.927E6129", "-999899889999998899988988988888.9E6115", [0xdfffed09bead87c0, 0x378d8e63ffffffff], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0432() {
+  check!(3, 0, 0, "+6875897.879876979566658996675E6133", "+8.464777979989329969757976492E6138", [0x5ffe0000f985fe93, 0x59e4745fb3d1594a], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0433() {
+  check!(3, 0, 0, "+7597756576.869587795965598779879969E-6070", "-8.E-6021", [0x80f58a6e32246c99, 0xc60ad84fffffffff], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0434() {
+  check!(3, 0, 0, "-86.96E-6051", "+6262839768259358968798.482E-6125", [0x80bbacbef36ec2d9, 0x53f1ad2dffffffff], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0435() {
+  check!(3, 0, 0, "-88.E6128", "+1001100110110.E6131", [0x5ffe04ef90e43b13, 0x38b16e0304700000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0436() {
+  check!(3, 0, 0, "-89.689988889E-6076", "-9899.98898989888988898E-6079", [0x80a000000000021b, 0xe0dbab0ddddd0ee2], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0437() {
+  check!(3, 0, 0, "+89797785599559975.97E6141", "-10011100011110110.1111010001E6132", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0438() {
+  check!(3, 0, 0, "-8989899.889889998E6139", "+1010010011101.001000010E6140", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0439() {
+  check!(3, 0, 0, "+8999898889.898889988998988899899988E-6113", "-98.E-6015", [0x8103e32d63d30509, 0x2c33af61ffffffff], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0440() {
+  check!(3, 0, 0, "-911011001111110.01111E-6035", "+7757.85756877599677796689977E-6050", [0x80f5c129c10b6a95, 0xe248c238835bfeb0], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0441() {
+  check!(3, 0, 0, "-9596859585978896957666.8999678658685898E6123", "-855789958.556566566858E6136", [0xdfffed09bead87c0, 0x378d8e63ffffffff], F_28_28, F_20_00, F_20_00);
+}
+
+#[test]
+fn _0442() {
+  check!(3, 0, 0, "-986.7998E6137", "-28399226863623.4336534472E6122", [0xdffe00013edc83f3, 0x5bce6e5a0186fdd0], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0443() {
+  check!(3, 0, 0, "-9888988988.8899888988E6150", "+88887766666797.9757555E6150", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0444() {
+  check!(3, 0, 0, "+98988.E6140", "+5758859.7585E6137", [0x5fffed09bead87c0, 0x378d8e63ffffffff], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0445() {
+  check!(3, 0, 0, "+989.89E6147", "-11011101001010.001110000001E6145", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0446() {
+  check!(3, 0, 0, "+98998899988998.899898899998999E6141", "-99898899999898899998999998988899.E6130", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0447() {
+  check!(3, 0, 0, "+9976878.E6138", "+688895688756979657657.6957987659886589697E6123", [0x5fffed09bead87c0, 0x378d8e63ffffffff], F_28_28, F_00_00, F_20_00);
+}
+
+#[test]
+fn _0448() {
+  check!(3, 0, 0, "-99898888.8899899989989999988898989888E6106", "-58975778987588776588859.6877656E6124", [0xf800000000000000, 0x0000000000000000], F_28_00, F_20_00, F_28_00);
+}
+
+#[test]
+fn _0449() {
+  check!(3, 0, 0, "+9989989898899.999889E6132", "+10100000010000110100111011.1010101101E6119", [0x5fffed09bead87c0, 0x378d8e63ffffffff], F_28_28, F_00_00, F_20_00);
+}
+
+#[test]
+fn _0450() {
+  check!(3, 0, 0, "+9.9E6144", "+1100010.111001111011011101010E6138", [0x5fffed09bead87c0, 0x378d8e63ffffffff], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0451() {
+  check!(3, 0, 0, "Infinity", "-0", [0x7800000000000000, 0x0000000000000000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0452() {
+  check!(3, 0, 0, "-Infinity", "Infinity", [0x7c00000000000000, 0x0000000000000000], F_01_01, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0453() {
+  check!(3, 0, 0, "-Infinity", "QNaN", [0x7c00000000000000, 0x0000000000000000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0454() {
+  check!(3, 0, 0, "Infinity", "SNaN", [0x7c00000000000000, 0x0000000000000000], F_01_01, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0455() {
+  check!(3, 0, 0, "QNaN", "-Infinity", [0x7c00000000000000, 0x0000000000000000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0456() {
+  check!(3, 0, 0, "SNaN", "-Infinity", [0x7c00000000000000, 0x0000000000000000], F_01_01, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0457() {
+  check!(3, 0, 0, "SNaN", "SNaN", [0x7c00000000000000, 0x0000000000000000], F_01_01, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0458() {
+  check!(4, 0, 0, "0", "QNaN", [0x7c00000000000000, 0x0000000000000000], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0459() {
+  check!(4, 0, 0, "+100000.00000000E6107", "+5695567.598669978987E6134", [0x5ff718d02b771ae1, 0xf14f07d33b7906a0], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0460() {
+  check!(4, 0, 0, "+1.00101011001100101E6131", "-98697989675958559.6755E6101", [0x5fe4315a861bf878, 0xb4305be78d569c45], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0461() {
+  check!(4, 0, 0, "-1001100.E6103", "+76675966976599977.8786866E6115", [0x5fee0000f7c0df92, 0xac3e3aec4c25c4b4], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0462() {
+  check!(4, 0, 0, "-1010000000000100.E-6008", "-8.E-6083", [0x812c31cbfe02adbb, 0x651a045de3100000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0463() {
+  check!(4, 0, 0, "+101001100000101.000000E6138", "-7695957767658598867966685688.99E6120", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0464() {
+  check!(4, 0, 0, "+101010111000001011101000100100000010.E6111", "-75.59599E6145", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0465() {
+  check!(4, 0, 0, "-10.11000000110000E6142", "-1010000.10000000E6100", [0xdffc31d89d2f61d1, 0x5c703f2068c00000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0466() {
+  check!(4, 0, 0, "-1011.000011100100000001000110E-6050", "-899998998989888989988.888898898E-6112", [0x80c031d89d38790f, 0xe039a2b1dfc38780], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0467() {
+  check!(4, 0, 0, "+1100111110010000101100.00111E-6148", "-0.E-6012", [0x002e0000005affc2, 0x46f94b02529cdbef], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0468() {
+  check!(4, 0, 0, "+11011000100110.0000001001001111E-6070", "-111100101.001E-6037", [0x80e436c6cde001d1, 0x9539cedba43e51e2], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0469() {
+  check!(4, 0, 0, "+1.10110010100000011010100000E6117", "-0.E6139", [0x5fd60000005b14b3, 0x9baf21a04e72cb20], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0470() {
+  check!(4, 0, 0, "-111110011011.0110000100E6105", "+11000100110.00000110010010E6121", [0x5fe4363c140ab6a4, 0x209184fd9dc6d2d0], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0471() {
+  check!(4, 0, 0, "-263422633844658.928332597223469897E6134", "+747.E6145", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0472() {
+  check!(4, 0, 0, "+2997.653489948889292735459468782643377E6108", "+9278673824.6482453738329E6133", [0x5ffbc9795419f3c8, 0x9a4a228d118ea92c], F_20_20, F_20_00, F_20_00);
+}
+
+#[test]
+fn _0473() {
+  check!(4, 0, 0, "+3624659768534336587.96423867374255653E6150", "-10010001111100011101010101110.0110000011E6141", [0x7c00000000000000, 0x0000000000000000], F_29_01, F_28_00, F_28_00);
+}
+
+#[test]
+fn _0474() {
+  check!(4, 0, 0, "-394.678E6139", "+55.3696E6105", [0xdff8c2975dfa0314, 0xf5a1f65160000000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0475() {
+  check!(4, 0, 0, "+55689855855588879577565566.7587E6118", "+9988989988.888898899999E6135", [0x7800000000000000, 0x0000000000000000], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0476() {
+  check!(4, 0, 0, "-5.995688758689789876988877865667857E6127", "-8989899999.E6126", [0xdfedbb3c7dbd8ef7, 0x18864a2b3a96360b], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0477() {
+  check!(4, 0, 0, "+6667779.8796559657568566E6121", "-1.E6129", [0xdff200000000c5a3, 0x7f76f1936e1a76ca], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0478() {
+  check!(4, 0, 0, "-67742893945653349875463748543548.9E-6184", "+1100.0100110001101010E-6045", [0x00ca363c140ab6aa, 0x266b6f4aea488000], F_30_20, F_30_00, F_30_00);
+}
+
+#[test]
+fn _0479() {
+  check!(4, 0, 0, "-68488695427246.927E6129", "-999899889999998899988988988888.9E6115", [0xf800000000000000, 0x0000000000000000], F_28_28, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0480() {
+  check!(4, 0, 0, "+6875897.879876979566658996675E6133", "+8.464777979989329969757976492E6138", [0x5ffe0000f985fe93, 0x59e4745fb3d1594a], F_00_00, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0481() {
+  check!(4, 0, 0, "+7597756576.869587795965598779879969E-6070", "-8.E-6021", [0x80f58a6e32246c99, 0xc60ad85000000000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0482() {
+  check!(0, 0, 0, "+0.1E2453", "-276.64595434738648E2415", [0x4326314dc6448d93, 0x38c15b0a00000000], F_20_20, F_00_00, F_00_00);
+}
+
+#[test]
+fn _0483() {
+  check!(0, 0, 0, "+6875897.879876979566658996675E6133", "+8.464777979989329969757976492E6138", [0x5ffe0000f985fe93, 0x59e4745fb3d1594a], F_00_00, F_00_00, F_00_00);
+}

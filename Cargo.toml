@@ -1,0 +1,25 @@
+[package]
+name = "decimus"
+version = "0.0.1"
+authors = ["Dariusz Depta <depta@engos.de>"]
+description = "Decimal Floating-Point Math Library for Rust"
+documentation = "https://docs.rs/decimus"
+repository = "https://github.com/EngosSoftware/decimus.git"
+keywords = ["decimal", "floating", "point", "math", "library"]
+categories = ["mathematics"]
+license = "MIT OR Apache-2.0"
+edition = "2024"
+exclude = [
+    "rustfmt.toml",
+    "Taskfile.yml",
+    ".github/",
+    ".gitignore",
+    "/NOTES_AT_FUTURE_ME.md"
+]
+
+[features]
+default = ["bid-set-status-flags"]
+
+bid-set-status-flags = []
+ieee-round-nearest-ties-away = []
+ieee-round-nearest = []

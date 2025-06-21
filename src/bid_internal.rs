@@ -1,0 +1,948 @@
+#![allow(unused_macros)]
+
+use crate::bid_decimal_data::*;
+use crate::bid_functions::*;
+use crate::bid64::Bid64;
+use crate::bid256::Bid256;
+use crate::{Bid128, IdecFlags, IdecRound};
+
+//pub const EXP_MIN: u64 = 0x0000000000000000;
+// EXP_MIN = (-6176 + 6176) << 49
+//pub const EXP_MAX: u64 = 0x5ffe000000000000;
+// EXP_MAX = (6111 + 6176) << 49
+pub const EXP_MAX_P1: u64 = 0x6000000000000000;
+// EXP_MAX + 1 = (6111 + 6176 + 1) << 49
+pub const EXP_P1: u64 = 0x0002000000000000;
+
+//pub const P7: i32 = 7;
+//pub const P16: i32 = 16;
+pub const P34: i32 = 34;
+
+pub const DECIMAL_EXPONENT_BIAS_128: i32 = 6176;
+pub const DECIMAL_MAX_EXPON_128: i32 = 12287;
+pub const MAX_FORMAT_DIGITS_128: i32 = 34;
+#[allow(dead_code)]
+pub const LARGEST_BID128_HIGH: u64 = 0x5fffed09bead87c0;
+#[allow(dead_code)]
+pub const LARGEST_BID128_LOW: u64 = 0x378d8e63ffffffff;
+pub const INFINITY_MASK64: u64 = 0x7800000000000000;
+
+//======================================
+// Status flag handling
+//======================================
+
+macro_rules! set_status_flags {
+  ($fpsc:expr, $status:expr) => {{ *$fpsc |= $status }};
+}
+
+#[cfg(feature = "bid-set-status-flags")]
+pub(crate) use set_status_flags;
+
+macro_rules! is_inexact {
+  ($fpsc:expr) => {
+    *$fpsc & BID_INEXACT_EXCEPTION == BID_INEXACT_EXCEPTION
+  };
+}
+
+//======================================
+// String macros
+//======================================
+
+macro_rules! tolower_macro {
+  ($x:expr) => {
+    if $x.is_ascii_uppercase() { $x - b'A' + b'a' } else { $x }
+  };
+}
+
+pub(crate) use tolower_macro;
+
+pub struct DecDigits {
+  pub digits: i32,
+  pub threshold_hi: u64,
+  pub threshold_lo: u64,
+  pub digits1: i32,
+}
+
+/// Table BID_NR_DIGITS
+///
+/// The first entry of BID_NR_DIGITS`[i - 1`] (where 1 <= i <= 113),
+/// indicates the number of decimal digits needed to represent a binary number with `i` bits.
+/// However, if a binary number of `i` bits may require either `k` or `k + 1` decimal digits,
+/// then the first entry of BID_NR_DIGITS\[i - 1\] is 0. In this case if the number
+/// is less than the value represented by the second and third entries concatenated,
+/// then the number of decimal digits `k` is the fourth entry, else the number of decimal
+/// digits is the fourth entry plus **1**.
+#[rustfmt::skip]
+pub const BID_NR_DIGITS: [DecDigits; 113] = [
+  DecDigits{ digits:  1, threshold_hi: 0x0000000000000000, threshold_lo: 0x000000000000000a, digits1:  1 }, //  Only the first entry is used if it is not 0.
+  DecDigits{ digits:  1, threshold_hi: 0x0000000000000000, threshold_lo: 0x000000000000000a, digits1:  1 }, //   1-bit n < 10^1
+  DecDigits{ digits:  1, threshold_hi: 0x0000000000000000, threshold_lo: 0x000000000000000a, digits1:  1 }, //   2-bit n < 10^1
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000000000, threshold_lo: 0x000000000000000a, digits1:  1 }, //   3-bit n < 10^1
+  DecDigits{ digits:  2, threshold_hi: 0x0000000000000000, threshold_lo: 0x0000000000000064, digits1:  2 }, //   4-bit n ? 10^1
+  DecDigits{ digits:  2, threshold_hi: 0x0000000000000000, threshold_lo: 0x0000000000000064, digits1:  2 }, //   5-bit n < 10^2
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000000000, threshold_lo: 0x0000000000000064, digits1:  2 }, //   6-bit n < 10^2
+  DecDigits{ digits:  3, threshold_hi: 0x0000000000000000, threshold_lo: 0x00000000000003e8, digits1:  3 }, //   7-bit n ? 10^2
+  DecDigits{ digits:  3, threshold_hi: 0x0000000000000000, threshold_lo: 0x00000000000003e8, digits1:  3 }, //   8-bit n < 10^3
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000000000, threshold_lo: 0x00000000000003e8, digits1:  3 }, //   9-bit n < 10^3
+  DecDigits{ digits:  4, threshold_hi: 0x0000000000000000, threshold_lo: 0x0000000000002710, digits1:  4 }, //  10-bit n ? 10^3
+  DecDigits{ digits:  4, threshold_hi: 0x0000000000000000, threshold_lo: 0x0000000000002710, digits1:  4 }, //  11-bit n < 10^4
+  DecDigits{ digits:  4, threshold_hi: 0x0000000000000000, threshold_lo: 0x0000000000002710, digits1:  4 }, //  12-bit n < 10^4
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000000000, threshold_lo: 0x0000000000002710, digits1:  4 }, //  13-bit n < 10^4
+  DecDigits{ digits:  5, threshold_hi: 0x0000000000000000, threshold_lo: 0x00000000000186a0, digits1:  5 }, //  14-bit n ? 10^4
+  DecDigits{ digits:  5, threshold_hi: 0x0000000000000000, threshold_lo: 0x00000000000186a0, digits1:  5 }, //  15-bit n < 10^5
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000000000, threshold_lo: 0x00000000000186a0, digits1:  5 }, //  16-bit n < 10^5
+  DecDigits{ digits:  6, threshold_hi: 0x0000000000000000, threshold_lo: 0x00000000000f4240, digits1:  6 }, //  17-bit n ? 10^5
+  DecDigits{ digits:  6, threshold_hi: 0x0000000000000000, threshold_lo: 0x00000000000f4240, digits1:  6 }, //  18-bit n < 10^6
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000000000, threshold_lo: 0x00000000000f4240, digits1:  6 }, //  19-bit n < 10^6
+  DecDigits{ digits:  7, threshold_hi: 0x0000000000000000, threshold_lo: 0x0000000000989680, digits1:  7 }, //  20-bit n ? 10^6
+  DecDigits{ digits:  7, threshold_hi: 0x0000000000000000, threshold_lo: 0x0000000000989680, digits1:  7 }, //  21-bit n < 10^7
+  DecDigits{ digits:  7, threshold_hi: 0x0000000000000000, threshold_lo: 0x0000000000989680, digits1:  7 }, //  22-bit n < 10^7
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000000000, threshold_lo: 0x0000000000989680, digits1:  7 }, //  23-bit n < 10^7
+  DecDigits{ digits:  8, threshold_hi: 0x0000000000000000, threshold_lo: 0x0000000005f5e100, digits1:  8 }, //  24-bit n ? 10^7
+  DecDigits{ digits:  8, threshold_hi: 0x0000000000000000, threshold_lo: 0x0000000005f5e100, digits1:  8 }, //  25-bit n < 10^8
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000000000, threshold_lo: 0x0000000005f5e100, digits1:  8 }, //  26-bit n < 10^8
+  DecDigits{ digits:  9, threshold_hi: 0x0000000000000000, threshold_lo: 0x000000003b9aca00, digits1:  9 }, //  27-bit n ? 10^8
+  DecDigits{ digits:  9, threshold_hi: 0x0000000000000000, threshold_lo: 0x000000003b9aca00, digits1:  9 }, //  28-bit n < 10^9
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000000000, threshold_lo: 0x000000003b9aca00, digits1:  9 }, //  29-bit n < 10^9
+  DecDigits{ digits: 10, threshold_hi: 0x0000000000000000, threshold_lo: 0x00000002540be400, digits1: 10 },	//  30-bit n ? 10^9
+  DecDigits{ digits: 10, threshold_hi: 0x0000000000000000, threshold_lo: 0x00000002540be400, digits1: 10 },	//  31-bit n < 10^10
+  DecDigits{ digits: 10, threshold_hi: 0x0000000000000000, threshold_lo: 0x00000002540be400, digits1: 10 },	//  32-bit n < 10^10
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000000000, threshold_lo: 0x00000002540be400, digits1: 10 },	//  33-bit n < 10^10
+  DecDigits{ digits: 11, threshold_hi: 0x0000000000000000, threshold_lo: 0x000000174876e800, digits1: 11 },	//  34-bit n ? 10^10
+  DecDigits{ digits: 11, threshold_hi: 0x0000000000000000, threshold_lo: 0x000000174876e800, digits1: 11 },	//  35-bit n < 10^11
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000000000, threshold_lo: 0x000000174876e800, digits1: 11 },	//  36-bit n < 10^11
+  DecDigits{ digits: 12, threshold_hi: 0x0000000000000000, threshold_lo: 0x000000e8d4a51000, digits1: 12 },	//  37-bit n ? 10^11
+  DecDigits{ digits: 12, threshold_hi: 0x0000000000000000, threshold_lo: 0x000000e8d4a51000, digits1: 12 },	//  38-bit n < 10^12
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000000000, threshold_lo: 0x000000e8d4a51000, digits1: 12 },	//  39-bit n < 10^12
+  DecDigits{ digits: 13, threshold_hi: 0x0000000000000000, threshold_lo: 0x000009184e72a000, digits1: 13 },	//  40-bit n ? 10^12
+  DecDigits{ digits: 13, threshold_hi: 0x0000000000000000, threshold_lo: 0x000009184e72a000, digits1: 13 },	//  41-bit n < 10^13
+  DecDigits{ digits: 13, threshold_hi: 0x0000000000000000, threshold_lo: 0x000009184e72a000, digits1: 13 },	//  42-bit n < 10^13
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000000000, threshold_lo: 0x000009184e72a000, digits1: 13 },	//  43-bit n < 10^13
+  DecDigits{ digits: 14, threshold_hi: 0x0000000000000000, threshold_lo: 0x00005af3107a4000, digits1: 14 },	//  44-bit n ? 10^13
+  DecDigits{ digits: 14, threshold_hi: 0x0000000000000000, threshold_lo: 0x00005af3107a4000, digits1: 14 },	//  45-bit n < 10^14
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000000000, threshold_lo: 0x00005af3107a4000, digits1: 14 },	//  46-bit n < 10^14
+  DecDigits{ digits: 15, threshold_hi: 0x0000000000000000, threshold_lo: 0x00038d7ea4c68000, digits1: 15 },	//  47-bit n ? 10^14
+  DecDigits{ digits: 15, threshold_hi: 0x0000000000000000, threshold_lo: 0x00038d7ea4c68000, digits1: 15 },	//  48-bit n < 10^15
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000000000, threshold_lo: 0x00038d7ea4c68000, digits1: 15 },	//  49-bit n < 10^15
+  DecDigits{ digits: 16, threshold_hi: 0x0000000000000000, threshold_lo: 0x002386f26fc10000, digits1: 16 },	//  50-bit n ? 10^15
+  DecDigits{ digits: 16, threshold_hi: 0x0000000000000000, threshold_lo: 0x002386f26fc10000, digits1: 16 },	//  51-bit n < 10^16
+  DecDigits{ digits: 16, threshold_hi: 0x0000000000000000, threshold_lo: 0x002386f26fc10000, digits1: 16 },	//  52-bit n < 10^16
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000000000, threshold_lo: 0x002386f26fc10000, digits1: 16 },	//  53-bit n < 10^16
+  DecDigits{ digits: 17, threshold_hi: 0x0000000000000000, threshold_lo: 0x016345785d8a0000, digits1: 17 },	//  54-bit n ? 10^16
+  DecDigits{ digits: 17, threshold_hi: 0x0000000000000000, threshold_lo: 0x016345785d8a0000, digits1: 17 },	//  55-bit n < 10^17
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000000000, threshold_lo: 0x016345785d8a0000, digits1: 17 },	//  56-bit n < 10^17
+  DecDigits{ digits: 18, threshold_hi: 0x0000000000000000, threshold_lo: 0x0de0b6b3a7640000, digits1: 18 },	//  57-bit n ? 10^17
+  DecDigits{ digits: 18, threshold_hi: 0x0000000000000000, threshold_lo: 0x0de0b6b3a7640000, digits1: 18 },	//  58-bit n < 10^18
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000000000, threshold_lo: 0x0de0b6b3a7640000, digits1: 18 },	//  59-bit n < 10^18
+  DecDigits{ digits: 19, threshold_hi: 0x0000000000000000, threshold_lo: 0x8ac7230489e80000, digits1: 19 },	//  60-bit n ? 10^18
+  DecDigits{ digits: 19, threshold_hi: 0x0000000000000000, threshold_lo: 0x8ac7230489e80000, digits1: 19 },	//  61-bit n < 10^19
+  DecDigits{ digits: 19, threshold_hi: 0x0000000000000000, threshold_lo: 0x8ac7230489e80000, digits1: 19 },	//  62-bit n < 10^19
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000000000, threshold_lo: 0x8ac7230489e80000, digits1: 19 },	//  63-bit n < 10^19
+  DecDigits{ digits: 20, threshold_hi: 0x0000000000000005, threshold_lo: 0x6bc75e2d63100000, digits1: 20 },	//  64-bit n ? 10^19
+  DecDigits{ digits: 20, threshold_hi: 0x0000000000000005, threshold_lo: 0x6bc75e2d63100000, digits1: 20 },	//  65-bit n < 10^20
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000000005, threshold_lo: 0x6bc75e2d63100000, digits1: 20 },	//  66-bit n < 10^20
+  DecDigits{ digits: 21, threshold_hi: 0x0000000000000036, threshold_lo: 0x35c9adc5dea00000, digits1: 21 },	//  67-bit n ? 10^20
+  DecDigits{ digits: 21, threshold_hi: 0x0000000000000036, threshold_lo: 0x35c9adc5dea00000, digits1: 21 },	//  68-bit n < 10^21
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000000036, threshold_lo: 0x35c9adc5dea00000, digits1: 21 },	//  69-bit n < 10^21
+  DecDigits{ digits: 22, threshold_hi: 0x000000000000021e, threshold_lo: 0x19e0c9bab2400000, digits1: 22 },	//  70-bit n ? 10^21
+  DecDigits{ digits: 22, threshold_hi: 0x000000000000021e, threshold_lo: 0x19e0c9bab2400000, digits1: 22 },	//  71-bit n < 10^22
+  DecDigits{ digits: 22, threshold_hi: 0x000000000000021e, threshold_lo: 0x19e0c9bab2400000, digits1: 22 },	//  72-bit n < 10^22
+  DecDigits{ digits:  0, threshold_hi: 0x000000000000021e, threshold_lo: 0x19e0c9bab2400000, digits1: 22 },	//  73-bit n < 10^22
+  DecDigits{ digits: 23, threshold_hi: 0x000000000000152d, threshold_lo: 0x02c7e14af6800000, digits1: 23 },	//  74-bit n ? 10^22
+  DecDigits{ digits: 23, threshold_hi: 0x000000000000152d, threshold_lo: 0x02c7e14af6800000, digits1: 23 },	//  75-bit n < 10^23
+  DecDigits{ digits:  0, threshold_hi: 0x000000000000152d, threshold_lo: 0x02c7e14af6800000, digits1: 23 },	//  76-bit n < 10^23
+  DecDigits{ digits: 24, threshold_hi: 0x000000000000d3c2, threshold_lo: 0x1bcecceda1000000, digits1: 24 },	//  77-bit n ? 10^23
+  DecDigits{ digits: 24, threshold_hi: 0x000000000000d3c2, threshold_lo: 0x1bcecceda1000000, digits1: 24 },	//  78-bit n < 10^24
+  DecDigits{ digits:  0, threshold_hi: 0x000000000000d3c2, threshold_lo: 0x1bcecceda1000000, digits1: 24 },	//  79-bit n < 10^24
+  DecDigits{ digits: 25, threshold_hi: 0x0000000000084595, threshold_lo: 0x161401484a000000, digits1: 25 },	//  80-bit n ? 10^24
+  DecDigits{ digits: 25, threshold_hi: 0x0000000000084595, threshold_lo: 0x161401484a000000, digits1: 25 },	//  81-bit n < 10^25
+  DecDigits{ digits: 25, threshold_hi: 0x0000000000084595, threshold_lo: 0x161401484a000000, digits1: 25 },	//  82-bit n < 10^25
+  DecDigits{ digits:  0, threshold_hi: 0x0000000000084595, threshold_lo: 0x161401484a000000, digits1: 25 },	//  83-bit n < 10^25
+  DecDigits{ digits: 26, threshold_hi: 0x000000000052b7d2, threshold_lo: 0xdcc80cd2e4000000, digits1: 26 },	//  84-bit n ? 10^25
+  DecDigits{ digits: 26, threshold_hi: 0x000000000052b7d2, threshold_lo: 0xdcc80cd2e4000000, digits1: 26 },	//  85-bit n < 10^26
+  DecDigits{ digits:  0, threshold_hi: 0x000000000052b7d2, threshold_lo: 0xdcc80cd2e4000000, digits1: 26 },	//  86-bit n < 10^26
+  DecDigits{ digits: 27, threshold_hi: 0x00000000033b2e3c, threshold_lo: 0x9fd0803ce8000000, digits1: 27 },	//  87-bit n ? 10^26
+  DecDigits{ digits: 27, threshold_hi: 0x00000000033b2e3c, threshold_lo: 0x9fd0803ce8000000, digits1: 27 },	//  88-bit n < 10^27
+  DecDigits{ digits:  0, threshold_hi: 0x00000000033b2e3c, threshold_lo: 0x9fd0803ce8000000, digits1: 27 },	//  89-bit n < 10^27
+  DecDigits{ digits: 28, threshold_hi: 0x00000000204fce5e, threshold_lo: 0x3e25026110000000, digits1: 28 },	//  90-bit n ? 10^27
+  DecDigits{ digits: 28, threshold_hi: 0x00000000204fce5e, threshold_lo: 0x3e25026110000000, digits1: 28 },	//  91-bit n < 10^28
+  DecDigits{ digits: 28, threshold_hi: 0x00000000204fce5e, threshold_lo: 0x3e25026110000000, digits1: 28 },	//  92-bit n < 10^28
+  DecDigits{ digits:  0, threshold_hi: 0x00000000204fce5e, threshold_lo: 0x3e25026110000000, digits1: 28 },	//  93-bit n < 10^28
+  DecDigits{ digits: 29, threshold_hi: 0x00000001431e0fae, threshold_lo: 0x6d7217caa0000000, digits1: 29 },	//  94-bit n ? 10^28
+  DecDigits{ digits: 29, threshold_hi: 0x00000001431e0fae, threshold_lo: 0x6d7217caa0000000, digits1: 29 },	//  95-bit n < 10^29
+  DecDigits{ digits:  0, threshold_hi: 0x00000001431e0fae, threshold_lo: 0x6d7217caa0000000, digits1: 29 },	//  96-bit n < 10^29
+  DecDigits{ digits: 30, threshold_hi: 0x0000000c9f2c9cd0, threshold_lo: 0x4674edea40000000, digits1: 30 },	//  97-bit n ? 10^29
+  DecDigits{ digits: 30, threshold_hi: 0x0000000c9f2c9cd0, threshold_lo: 0x4674edea40000000, digits1: 30 },	//  98-bit n < 10^30
+  DecDigits{ digits:  0, threshold_hi: 0x0000000c9f2c9cd0, threshold_lo: 0x4674edea40000000, digits1: 30 },	//  99-bit n < 10^30
+  DecDigits{ digits: 31, threshold_hi: 0x0000007e37be2022, threshold_lo: 0xc0914b2680000000, digits1: 31 },	// 100-bit n ? 10^30
+  DecDigits{ digits: 31, threshold_hi: 0x0000007e37be2022, threshold_lo: 0xc0914b2680000000, digits1: 31 },	// 101-bit n < 10^31
+  DecDigits{ digits:  0, threshold_hi: 0x0000007e37be2022, threshold_lo: 0xc0914b2680000000, digits1: 31 },	// 102-bit n < 10^31
+  DecDigits{ digits: 32, threshold_hi: 0x000004ee2d6d415b, threshold_lo: 0x85acef8100000000, digits1: 32 },	// 103-bit n ? 10^31
+  DecDigits{ digits: 32, threshold_hi: 0x000004ee2d6d415b, threshold_lo: 0x85acef8100000000, digits1: 32 },	// 104-bit n < 10^32
+  DecDigits{ digits: 32, threshold_hi: 0x000004ee2d6d415b, threshold_lo: 0x85acef8100000000, digits1: 32 },	// 105-bit n < 10^32
+  DecDigits{ digits:  0, threshold_hi: 0x000004ee2d6d415b, threshold_lo: 0x85acef8100000000, digits1: 32 },	// 106-bit n < 10^32
+  DecDigits{ digits: 33, threshold_hi: 0x0000314dc6448d93, threshold_lo: 0x38c15b0a00000000, digits1: 33 },	// 107-bit n ? 10^32
+  DecDigits{ digits: 33, threshold_hi: 0x0000314dc6448d93, threshold_lo: 0x38c15b0a00000000, digits1: 33 },	// 108-bit n < 10^33
+  DecDigits{ digits:  0, threshold_hi: 0x0000314dc6448d93, threshold_lo: 0x38c15b0a00000000, digits1: 33 },	// 109-bit n < 10^33
+  DecDigits{ digits: 34, threshold_hi: 0x0001ed09bead87c0, threshold_lo: 0x378d8e6400000000, digits1: 34 },	// 100-bit n ? 10^33
+  DecDigits{ digits: 34, threshold_hi: 0x0001ed09bead87c0, threshold_lo: 0x378d8e6400000000, digits1: 34 },	// 111-bit n < 10^34
+  DecDigits{ digits:  0, threshold_hi: 0x0001ed09bead87c0, threshold_lo: 0x378d8e6400000000, digits1: 34 }  // 112-bit n < 10^34
+];
+
+/// Table BID_TEN2K64
+///
+/// BID_TEN2K64\[i\] = 10^i (where 0 <= i <= 19)
+#[rustfmt::skip]
+pub const BID_TEN2K64: [u64; 20] = [
+  0x0000000000000001, // 10^0
+  0x000000000000000a, // 10^1
+  0x0000000000000064, // 10^2
+  0x00000000000003e8, // 10^3
+  0x0000000000002710, // 10^4
+  0x00000000000186a0, // 10^5
+  0x00000000000f4240, // 10^6
+  0x0000000000989680, // 10^7
+  0x0000000005f5e100, // 10^8
+  0x000000003b9aca00, // 10^9
+  0x00000002540be400, // 10^10
+  0x000000174876e800, // 10^11
+  0x000000e8d4a51000, // 10^12
+  0x000009184e72a000, // 10^13
+  0x00005af3107a4000, // 10^14
+  0x00038d7ea4c68000, // 10^15
+  0x002386f26fc10000, // 10^16
+  0x016345785d8a0000, // 10^17
+  0x0de0b6b3a7640000, // 10^18
+  0x8ac7230489e80000, // 10^19 (20 digits)
+];
+
+macro_rules! bid_ten2k64 {
+  ($index:expr) => {
+    BID_TEN2K64[$index as usize]
+  };
+}
+
+pub(crate) use bid_ten2k64;
+
+/// Table BID_TEN2K128
+///
+/// BID_TEN2K128\[i - 20\] = 10^i (where 20 <= i <= 38)
+///
+/// The 64-bit word order is Lo, Hi.
+#[rustfmt::skip]
+const BID_TEN2K128: [Bid128; 19] = [
+  Bid128 { w: [0x6bc75e2d63100000, 0x0000000000000005] }, // 10^20
+  Bid128 { w: [0x35c9adc5dea00000, 0x0000000000000036] }, // 10^21
+  Bid128 { w: [0x19e0c9bab2400000, 0x000000000000021e] }, // 10^22
+  Bid128 { w: [0x02c7e14af6800000, 0x000000000000152d] }, // 10^23
+  Bid128 { w: [0x1bcecceda1000000, 0x000000000000d3c2] }, // 10^24
+  Bid128 { w: [0x161401484a000000, 0x0000000000084595] }, // 10^25
+  Bid128 { w: [0xdcc80cd2e4000000, 0x000000000052b7d2] }, // 10^26
+  Bid128 { w: [0x9fd0803ce8000000, 0x00000000033b2e3c] }, // 10^27
+  Bid128 { w: [0x3e25026110000000, 0x00000000204fce5e] }, // 10^28
+  Bid128 { w: [0x6d7217caa0000000, 0x00000001431e0fae] }, // 10^29
+  Bid128 { w: [0x4674edea40000000, 0x0000000c9f2c9cd0] }, // 10^30
+  Bid128 { w: [0xc0914b2680000000, 0x0000007e37be2022] }, // 10^31
+  Bid128 { w: [0x85acef8100000000, 0x000004ee2d6d415b] }, // 10^32
+  Bid128 { w: [0x38c15b0a00000000, 0x0000314dc6448d93] }, // 10^33
+  Bid128 { w: [0x378d8e6400000000, 0x0001ed09bead87c0] }, // 10^34
+  Bid128 { w: [0x2b878fe800000000, 0x0013426172c74d82] }, // 10^35
+  Bid128 { w: [0xb34b9f1000000000, 0x00c097ce7bc90715] }, // 10^36
+  Bid128 { w: [0x00f436a000000000, 0x0785ee10d5da46d9] }, // 10^37
+  Bid128 { w: [0x098a224000000000, 0x4b3b4ca85a86c47a] }, // 10^38 (39 digits)
+];
+
+#[inline(always)]
+pub fn bid_ten2k128(index: i32) -> Bid128 {
+  BID_TEN2K128[index as usize]
+}
+
+/// Table BID_MIDPOINT64
+///
+/// BID_MIDPOINT64\[i - 1\] = 1/2 * 10^i = 5 * 10^(i-1) (where 1 <= i <= 19)
+#[rustfmt::skip]
+const BID_MIDPOINT64: [u64; 19] = [
+  0x0000000000000005, // 1/2 * 10^1 = 5 * 10^0
+  0x0000000000000032, // 1/2 * 10^2 = 5 * 10^1
+  0x00000000000001f4, // 1/2 * 10^3 = 5 * 10^2
+  0x0000000000001388, // 1/2 * 10^4 = 5 * 10^3
+  0x000000000000c350, // 1/2 * 10^5 = 5 * 10^4
+  0x000000000007a120, // 1/2 * 10^6 = 5 * 10^5
+  0x00000000004c4b40, // 1/2 * 10^7 = 5 * 10^6
+  0x0000000002faf080, // 1/2 * 10^8 = 5 * 10^7
+  0x000000001dcd6500, // 1/2 * 10^9 = 5 * 10^8
+  0x000000012a05f200, // 1/2 * 10^10 = 5 * 10^9
+  0x0000000ba43b7400, // 1/2 * 10^11 = 5 * 10^10
+  0x000000746a528800, // 1/2 * 10^12 = 5 * 10^11
+  0x0000048c27395000, // 1/2 * 10^13 = 5 * 10^12
+  0x00002d79883d2000, // 1/2 * 10^14 = 5 * 10^13
+  0x0001c6bf52634000, // 1/2 * 10^15 = 5 * 10^14
+  0x0011c37937e08000, // 1/2 * 10^16 = 5 * 10^15
+  0x00b1a2bc2ec50000, // 1/2 * 10^17 = 5 * 10^16
+  0x06f05b59d3b20000, // 1/2 * 10^18 = 5 * 10^17
+  0x4563918244f40000, // 1/2 * 10^19 = 5 * 10^18
+];
+
+#[inline(always)]
+pub fn bid_midpoint64(index: i32) -> u64 {
+  BID_MIDPOINT64[index as usize]
+}
+
+/// Table BID_MIDPOINT128
+///
+/// BID_MIDPOINT128\[i - 20\] = 1/2 * 10^i = 5 * 10^(i-1) (where 20 <= i <= 38)
+///
+/// The 64-bit word order is L, H.
+#[rustfmt::skip]
+const BID_MIDPOINT128: [Bid128; 19] = [
+  Bid128 { w: [0xb5e3af16b1880000, 0x0000000000000002] }, // 1/2 * 10^20 = 5 * 10^19
+  Bid128 { w: [0x1ae4d6e2ef500000, 0x000000000000001b] }, // 1/2 * 10^21 = 5 * 10^20
+  Bid128 { w: [0x0cf064dd59200000, 0x000000000000010f] }, // 1/2 * 10^22 = 5 * 10^21
+  Bid128 { w: [0x8163f0a57b400000, 0x0000000000000a96] }, // 1/2 * 10^23 = 5 * 10^22
+  Bid128 { w: [0x0de76676d0800000, 0x00000000000069e1] }, // 1/2 * 10^24 = 5 * 10^23
+  Bid128 { w: [0x8b0a00a425000000, 0x00000000000422ca] }, // 1/2 * 10^25 = 5 * 10^24
+  Bid128 { w: [0x6e64066972000000, 0x0000000000295be9] }, // 1/2 * 10^26 = 5 * 10^25
+  Bid128 { w: [0x4fe8401e74000000, 0x00000000019d971e] }, // 1/2 * 10^27 = 5 * 10^26
+  Bid128 { w: [0x1f12813088000000, 0x000000001027e72f] }, // 1/2 * 10^28 = 5 * 10^27
+  Bid128 { w: [0x36b90be550000000, 0x00000000a18f07d7] }, // 1/2 * 10^29 = 5 * 10^28
+  Bid128 { w: [0x233a76f520000000, 0x000000064f964e68] }, // 1/2 * 10^30 = 5 * 10^29
+  Bid128 { w: [0x6048a59340000000, 0x0000003f1bdf1011] }, // 1/2 * 10^31 = 5 * 10^30
+  Bid128 { w: [0xc2d677c080000000, 0x0000027716b6a0ad] }, // 1/2 * 10^32 = 5 * 10^31
+  Bid128 { w: [0x9c60ad8500000000, 0x000018a6e32246c9] }, // 1/2 * 10^33 = 5 * 10^32
+  Bid128 { w: [0x1bc6c73200000000, 0x0000f684df56c3e0] }, // 1/2 * 10^34 = 5 * 10^33
+  Bid128 { w: [0x15c3c7f400000000, 0x0009a130b963a6c1] }, // 1/2 * 10^35 = 5 * 10^34
+  Bid128 { w: [0xd9a5cf8800000000, 0x00604be73de4838a] }, // 1/2 * 10^36 = 5 * 10^35
+  Bid128 { w: [0x807a1b5000000000, 0x03c2f7086aed236c] }, // 1/2 * 10^37 = 5 * 10^36
+  Bid128 { w: [0x04c5112000000000, 0x259da6542d43623d] }, // 1/2 * 10^38 = 5 * 10^37
+];
+
+#[inline(always)]
+pub fn bid_midpoint128(index: i32) -> Bid128 {
+  BID_MIDPOINT128[index as usize]
+}
+
+/// Table BID_TEN2MK128
+///
+/// BID_TEN2MK128\[k - 1\] = 10^(-k) * 2^exp (k) (where 1 <= k <= 34)
+/// and exp(k) = bid_shiftright128\[k - 1\] + 128
+#[rustfmt::skip]
+const BID_TEN2MK128: [Bid128; 34] = [
+  Bid128{ w: [0x999999999999999a, 0x1999999999999999] }, //  10^(-1) * 2^128
+  Bid128{ w: [0x28f5c28f5c28f5c3, 0x028f5c28f5c28f5c] }, //  10^(-2) * 2^128
+  Bid128{ w: [0x9db22d0e56041894, 0x004189374bc6a7ef] }, //  10^(-3) * 2^128
+  Bid128{ w: [0x4af4f0d844d013aa, 0x00346dc5d6388659] }, //  10^(-4) * 2^131
+  Bid128{ w: [0x08c3f3e0370cdc88, 0x0029f16b11c6d1e1] }, //  10^(-5) * 2^134
+  Bid128{ w: [0x6d698fe69270b06d, 0x00218def416bdb1a] }, //  10^(-6) * 2^137
+  Bid128{ w: [0xaf0f4ca41d811a47, 0x0035afe535795e90] }, //  10^(-7) * 2^141
+  Bid128{ w: [0xbf3f70834acdaea0, 0x002af31dc4611873] }, //  10^(-8) * 2^144
+  Bid128{ w: [0x65cc5a02a23e254d, 0x00225c17d04dad29] }, //  10^(-9) * 2^147
+  Bid128{ w: [0x6fad5cd10396a214, 0x0036f9bfb3af7b75] }, // 10^(-10) * 2^151
+  Bid128{ w: [0xbfbde3da69454e76, 0x002bfaffc2f2c92a] }, // 10^(-11) * 2^154
+  Bid128{ w: [0x32fe4fe1edd10b92, 0x00232f33025bd422] }, // 10^(-12) * 2^157
+  Bid128{ w: [0x84ca19697c81ac1c, 0x00384b84d092ed03] }, // 10^(-13) * 2^161
+  Bid128{ w: [0x03d4e1213067bce4, 0x002d09370d425736] }, // 10^(-14) * 2^164
+  Bid128{ w: [0x3643e74dc052fd83, 0x0024075f3dceac2b] }, // 10^(-15) * 2^167
+  Bid128{ w: [0x56d30baf9a1e626b, 0x0039a5652fb11378] }, // 10^(-16) * 2^171
+  Bid128{ w: [0x12426fbfae7eb522, 0x002e1dea8c8da92d] }, // 10^(-17) * 2^174
+  Bid128{ w: [0x41cebfcc8b9890e8, 0x0024e4bba3a48757] }, // 10^(-18) * 2^177
+  Bid128{ w: [0x694acc7a78f41b0d, 0x003b07929f6da558] }, // 10^(-19) * 2^181
+  Bid128{ w: [0xbaa23d2ec729af3e, 0x002f394219248446] }, // 10^(-20) * 2^184
+  Bid128{ w: [0xfbb4fdbf05baf298, 0x0025c768141d369e] }, // 10^(-21) * 2^187
+  Bid128{ w: [0x2c54c931a2c4b759, 0x003c7240202ebdcb] }, // 10^(-22) * 2^191
+  Bid128{ w: [0x89dd6dc14f03c5e1, 0x00305b66802564a2] }, // 10^(-23) * 2^194
+  Bid128{ w: [0xd4b1249aa59c9e4e, 0x0026af8533511d4e] }, // 10^(-24) * 2^197
+  Bid128{ w: [0x544ea0f76f60fd49, 0x003de5a1ebb4fbb1] }, // 10^(-25) * 2^201
+  Bid128{ w: [0x76a54d92bf80caa1, 0x00318481895d9627] }, // 10^(-26) * 2^204
+  Bid128{ w: [0x921dd7a89933d54e, 0x00279d346de4781f] }, // 10^(-27) * 2^207
+  Bid128{ w: [0x8362f2a75b862215, 0x003f61ed7ca0c032] }, // 10^(-28) * 2^211
+  Bid128{ w: [0xcf825bb91604e811, 0x0032b4bdfd4d668e] }, // 10^(-29) * 2^214
+  Bid128{ w: [0x0c684960de6a5341, 0x00289097fdd7853f] }, // 10^(-30) * 2^217
+  Bid128{ w: [0x3d203ab3e521dc34, 0x002073accb12d0ff] }, // 10^(-31) * 2^220
+  Bid128{ w: [0x2e99f7863b696053, 0x0033ec47ab514e65] }, // 10^(-32) * 2^224
+  Bid128{ w: [0x587b2c6b62bab376, 0x002989d2ef743eb7] }, // 10^(-33) * 2^227
+  Bid128{ w: [0xad2f56bc4efbc2c5, 0x00213b0f25f69892] }, // 10^(-34) * 2^230
+];
+
+#[inline(always)]
+pub fn bid_ten2mk128(index: i32) -> Bid128 {
+  BID_TEN2MK128[index as usize]
+}
+
+/// Table BID_MASKHIGH128
+///
+/// BID_MASKHIGH128 contains the mask to apply to the top 128 bits of the 
+/// 128x128-bit product in order to obtain the high bits of f2*.
+#[rustfmt::skip]
+const BID_MASKHIGH128: [Bid64; 34] = [
+  0x0000000000000000, //  0 = 128 - 128 bits
+  0x0000000000000000, //  0 = 128 - 128 bits
+  0x0000000000000000, //  0 = 128 - 128 bits
+  0x0000000000000007, //  3 = 131 - 128 bits
+  0x000000000000003f, //  6 = 134 - 128 bits
+  0x00000000000001ff, //  9 = 137 - 128 bits
+  0x0000000000001fff, // 13 = 141 - 128 bits
+  0x000000000000ffff, // 16 = 144 - 128 bits
+  0x000000000007ffff, // 19 = 147 - 128 bits
+  0x00000000007fffff, // 23 = 151 - 128 bits
+  0x0000000003ffffff, // 26 = 154 - 128 bits
+  0x000000001fffffff, // 29 = 157 - 128 bits
+  0x00000001ffffffff, // 33 = 161 - 128 bits
+  0x0000000fffffffff, // 36 = 164 - 128 bits
+  0x0000007fffffffff, // 39 = 167 - 128 bits
+  0x000007ffffffffff, // 43 = 171 - 128 bits
+  0x00003fffffffffff, // 46 = 174 - 128 bits
+  0x0001ffffffffffff, // 49 = 177 - 128 bits
+  0x001fffffffffffff, // 53 = 181 - 128 bits
+  0x00ffffffffffffff, // 56 = 184 - 128 bits
+  0x07ffffffffffffff, // 59 = 187 - 128 bits
+  0x7fffffffffffffff, // 63 = 191 - 128 bits
+  0x0000000000000003, //  2 = 194 - 192 bits
+  0x000000000000001f, //  5 = 197 - 192 bits
+  0x00000000000001ff, //  9 = 201 - 192 bits
+  0x0000000000000fff, // 12 = 204 - 192 bits
+  0x0000000000007fff, // 15 = 207 - 192 bits
+  0x000000000007ffff, // 21 = 211 - 192 bits
+  0x00000000003fffff, // 22 = 214 - 192 bits
+  0x0000000001ffffff, // 25 = 217 - 192 bits
+  0x000000000fffffff, // 28 = 220 - 192 bits
+  0x00000000ffffffff, // 32 = 224 - 192 bits
+  0x00000007ffffffff, // 35 = 227 - 192 bits
+  0x0000003fffffffff  // 38 = 230 - 192 bits
+];
+
+#[inline(always)]
+pub fn bid_maskhigh128(index: i32) -> Bid64 {
+  BID_MASKHIGH128[index as usize]
+}
+
+/// Table BID_SHIFTRIGHT128
+///
+/// BID_SHIFTRIGHT128 contains the right shift count to obtain C2*
+/// from the top 128 bits of the 128x128-bit product C2 * Kx.
+#[rustfmt::skip]
+const BID_SHIFTRIGHT128: [i32; 34] = [
+  0,   // 128 - 128
+  0,   // 128 - 128
+  0,   // 128 - 128
+  3,   // 131 - 128
+  6,   // 134 - 128
+  9,   // 137 - 128
+  13,  // 141 - 128
+  16,  // 144 - 128
+  19,  // 147 - 128
+  23,  // 151 - 128
+  26,  // 154 - 128
+  29,  // 157 - 128
+  33,  // 161 - 128
+  36,  // 164 - 128
+  39,  // 167 - 128
+  43,  // 171 - 128
+  46,  // 174 - 128
+  49,  // 177 - 128
+  53,  // 181 - 128
+  56,  // 184 - 128
+  59,  // 187 - 128
+  63,  // 191 - 128
+  66,  // 194 - 128
+  69,  // 197 - 128
+  73,  // 201 - 128
+  76,  // 204 - 128
+  79,  // 207 - 128
+  83,  // 211 - 128
+  86,  // 214 - 128
+  89,  // 217 - 128
+  92,  // 220 - 128
+  96,  // 224 - 128
+  99,  // 227 - 128
+  102, // 230 - 128
+];
+
+#[inline(always)]
+pub fn bid_shiftright128(index: i32) -> i32 {
+  BID_SHIFTRIGHT128[index as usize]
+}
+
+/// Table BID_TEN2MK128TRUNC 
+///
+/// BID_TEN2MK128TRUNC contains T*, the top Ex >= 128 bits of 10^(-k), for 1 <= k <= 34
+///
+/// The 64-bit word order is Lo, Hi.
+#[rustfmt::skip]
+const BID_TEN2MK128TRUNC:[Bid128; 34] = [
+  Bid128{ w: [0x9999999999999999, 0x1999999999999999] },	//  10^(-1) * 2^128
+  Bid128{ w: [0x28f5c28f5c28f5c2, 0x028f5c28f5c28f5c] },	//  10^(-2) * 2^128
+  Bid128{ w: [0x9db22d0e56041893, 0x004189374bc6a7ef] },	//  10^(-3) * 2^128
+  Bid128{ w: [0x4af4f0d844d013a9, 0x00346dc5d6388659] },	//  10^(-4) * 2^131
+  Bid128{ w: [0x08c3f3e0370cdc87, 0x0029f16b11c6d1e1] },	//  10^(-5) * 2^134
+  Bid128{ w: [0x6d698fe69270b06c, 0x00218def416bdb1a] },	//  10^(-6) * 2^137
+  Bid128{ w: [0xaf0f4ca41d811a46, 0x0035afe535795e90] },	//  10^(-7) * 2^141
+  Bid128{ w: [0xbf3f70834acdae9f, 0x002af31dc4611873] },	//  10^(-8) * 2^144
+  Bid128{ w: [0x65cc5a02a23e254c, 0x00225c17d04dad29] },	//  10^(-9) * 2^147
+  Bid128{ w: [0x6fad5cd10396a213, 0x0036f9bfb3af7b75] },	// 10^(-10) * 2^151
+  Bid128{ w: [0xbfbde3da69454e75, 0x002bfaffc2f2c92a] },	// 10^(-11) * 2^154
+  Bid128{ w: [0x32fe4fe1edd10b91, 0x00232f33025bd422] },	// 10^(-12) * 2^157
+  Bid128{ w: [0x84ca19697c81ac1b, 0x00384b84d092ed03] },	// 10^(-13) * 2^161
+  Bid128{ w: [0x03d4e1213067bce3, 0x002d09370d425736] },	// 10^(-14) * 2^164
+  Bid128{ w: [0x3643e74dc052fd82, 0x0024075f3dceac2b] },	// 10^(-15) * 2^167
+  Bid128{ w: [0x56d30baf9a1e626a, 0x0039a5652fb11378] },	// 10^(-16) * 2^171
+  Bid128{ w: [0x12426fbfae7eb521, 0x002e1dea8c8da92d] },	// 10^(-17) * 2^174
+  Bid128{ w: [0x41cebfcc8b9890e7, 0x0024e4bba3a48757] },	// 10^(-18) * 2^177
+  Bid128{ w: [0x694acc7a78f41b0c, 0x003b07929f6da558] },	// 10^(-19) * 2^181
+  Bid128{ w: [0xbaa23d2ec729af3d, 0x002f394219248446] },	// 10^(-20) * 2^184
+  Bid128{ w: [0xfbb4fdbf05baf297, 0x0025c768141d369e] },	// 10^(-21) * 2^187
+  Bid128{ w: [0x2c54c931a2c4b758, 0x003c7240202ebdcb] },	// 10^(-22) * 2^191
+  Bid128{ w: [0x89dd6dc14f03c5e0, 0x00305b66802564a2] },	// 10^(-23) * 2^194
+  Bid128{ w: [0xd4b1249aa59c9e4d, 0x0026af8533511d4e] },	// 10^(-24) * 2^197
+  Bid128{ w: [0x544ea0f76f60fd48, 0x003de5a1ebb4fbb1] },	// 10^(-25) * 2^201
+  Bid128{ w: [0x76a54d92bf80caa0, 0x00318481895d9627] },	// 10^(-26) * 2^204
+  Bid128{ w: [0x921dd7a89933d54d, 0x00279d346de4781f] },	// 10^(-27) * 2^207
+  Bid128{ w: [0x8362f2a75b862214, 0x003f61ed7ca0c032] },	// 10^(-28) * 2^211
+  Bid128{ w: [0xcf825bb91604e810, 0x0032b4bdfd4d668e] },	// 10^(-29) * 2^214
+  Bid128{ w: [0x0c684960de6a5340, 0x00289097fdd7853f] },	// 10^(-30) * 2^217
+  Bid128{ w: [0x3d203ab3e521dc33, 0x002073accb12d0ff] },	// 10^(-31) * 2^220
+  Bid128{ w: [0x2e99f7863b696052, 0x0033ec47ab514e65] },	// 10^(-32) * 2^224
+  Bid128{ w: [0x587b2c6b62bab375, 0x002989d2ef743eb7] },	// 10^(-33) * 2^227
+  Bid128{ w: [0xad2f56bc4efbc2c4, 0x00213b0f25f69892] },	// 10^(-34) * 2^230
+];
+
+#[inline(always)]
+pub fn bid_ten2mk128trunc(index: i32) -> Bid128 {
+  BID_TEN2MK128TRUNC[index as usize]
+}
+
+/// Table BID_ONEHALF128
+///
+/// BID_ONEHALF128 contains the high bits of 1/2 positioned correctly
+/// for comparison with the high bits of f2*.
+///
+/// The 64-bit word order is Lo, Hi.
+#[rustfmt::skip]
+const BID_ONEHALF128: [Bid64; 34] = [
+  0x0000000000000000, //  0 bits
+  0x0000000000000000, //  0 bits
+  0x0000000000000000, //  0 bits
+  0x0000000000000004, //  3 bits
+  0x0000000000000020, //  6 bits
+  0x0000000000000100, //  9 bits
+  0x0000000000001000, // 13 bits
+  0x0000000000008000, // 16 bits
+  0x0000000000040000, // 19 bits
+  0x0000000000400000, // 23 bits
+  0x0000000002000000, // 26 bits
+  0x0000000010000000, // 29 bits
+  0x0000000100000000, // 33 bits
+  0x0000000800000000, // 36 bits
+  0x0000004000000000, // 39 bits
+  0x0000040000000000, // 43 bits
+  0x0000200000000000, // 46 bits
+  0x0001000000000000, // 49 bits
+  0x0010000000000000, // 53 bits
+  0x0080000000000000, // 56 bits
+  0x0400000000000000, // 59 bits
+  0x4000000000000000, // 63 bits
+  0x0000000000000002, // 66 bits
+  0x0000000000000010, // 69 bits
+  0x0000000000000100, // 73 bits
+  0x0000000000000800, // 76 bits
+  0x0000000000004000, // 79 bits
+  0x0000000000040000, // 83 bits
+  0x0000000000200000, // 86 bits
+  0x0000000001000000, // 89 bits
+  0x0000000008000000, // 92 bits
+  0x0000000080000000, // 96 bits
+  0x0000000400000000, // 99 bits
+  0x0000002000000000, // 102 bits
+];
+
+#[inline(always)]
+pub fn bid_onehalf128(index: i32) -> Bid64 {
+  BID_ONEHALF128[index as usize]
+}
+
+/// Returns 64 x 64 bit product.
+#[inline(always)]
+pub fn mul_64x64_to_128mach(p: &mut Bid128, cx: Bid64, cy: Bid64) {
+  let cxh: Bid64 = ((cx >> 32) as u32) as u64;
+  let cxl: Bid64 = (cx as u32) as u64;
+  let cyh: Bid64 = ((cy >> 32) as u32) as u64;
+  let cyl: Bid64 = (cy as u32) as u64;
+  let mut pm: Bid64 = cxh.wrapping_mul(cyl);
+  let mut ph: Bid64 = cxh.wrapping_mul(cyh);
+  let pl: Bid64 = cxl.wrapping_mul(cyl);
+  let pm2: Bid64 = cxl.wrapping_mul(cyh);
+  ph = ph.wrapping_add(((pm >> 32) as u32) as u64);
+  pm = ((pm as u32) as u64).wrapping_add(pm2).wrapping_add(((pl >> 32) as u32) as u64);
+  p.w[1] = ph.wrapping_add(((pm >> 32) as u32) as u64);
+  p.w[0] = (pm << 32).wrapping_add((pl as u32) as u64);
+}
+
+/// Returns full 64 x 64 bit product.
+#[inline(always)]
+pub fn mul_64x64_to_128(p: &mut Bid128, cx: Bid64, cy: Bid64) {
+  let cxh: Bid64 = ((cx >> 32) as u32) as u64;
+  let cxl: Bid64 = (cx as u32) as u64;
+  let cyh: Bid64 = ((cy >> 32) as u32) as u64;
+  let cyl: Bid64 = (cy as u32) as u64;
+  let mut pm = cxh.wrapping_mul(cyl);
+  let mut ph = cxh.wrapping_mul(cyh);
+  let pl = cxl.wrapping_mul(cyl);
+  let pm2 = cxl.wrapping_mul(cyh);
+  ph = ph.wrapping_add(((pm >> 32) as u32) as u64);
+  pm = ((pm as u32) as u64).wrapping_add(pm2).wrapping_add(((pl >> 32) as u32) as u64);
+  p.w[1] = ph.wrapping_add(((pm >> 32) as u32) as u64);
+  p.w[0] = (pm << 32).wrapping_add((pl as u32) as u64);
+}
+
+#[inline(always)]
+pub fn mul_128x64_to_128(q128: &mut Bid128, a64: Bid64, b128: Bid128) {
+  let albh_l: u64 = a64.wrapping_mul(b128.w[1]);
+  mul_64x64_to_128mach(q128, a64, b128.w[0]);
+  q128.w[1] = q128.w[1].wrapping_add(albh_l);
+}
+
+#[inline(always)]
+pub fn mul_128x128_to_256(r: &mut Bid256, x: Bid128, y: Bid128) {
+  let mut qll = Bid128::default();
+  let mut qlh = Bid128::default();
+  let mut phl = Bid64::default();
+  let mut phh = Bid64::default();
+  let mut co1 = Bid64::default();
+  let mut co2 = Bid64::default();
+  mul_64x128_full(&mut phl, &mut qll, x.w[0], y);
+  mul_64x128_full(&mut phh, &mut qlh, x.w[1], y);
+  r.w[0] = qll.w[0];
+  add_carry_out(&mut r.w[1], &mut co1, qlh.w[0], qll.w[1]);
+  add_carry_in_out(&mut r.w[2], &mut co2, qlh.w[1], phl, co1);
+  r.w[3] = phh.wrapping_add(co2);
+}
+
+#[inline(always)]
+pub fn mul_64x128_full(ph: &mut Bid64, ql: &mut Bid128, x: Bid64, y: Bid128) {
+  let mut albl = Bid128::default();
+  let mut albh = Bid128::default();
+  mul_64x64_to_128(&mut albh, x, y.w[1]);
+  mul_64x64_to_128(&mut albl, x, y.w[0]);
+  ql.w[0] = albl.w[0];
+  let mut qm2 = Bid128::default();
+  add_128_64(&mut qm2, albh, albl.w[1]);
+  ql.w[1] = qm2.w[0];
+  *ph = qm2.w[1];
+}
+
+#[inline(always)]
+pub fn mul_128x128_full(qh: &mut Bid128, ql: &mut Bid128, a: Bid128, b: Bid128) {
+  let mut albl: Bid128 = Bid128::default();
+  let mut albh: Bid128 = Bid128::default();
+  let mut ahbl: Bid128 = Bid128::default();
+  let mut ahbh: Bid128 = Bid128::default();
+  let mut qm: Bid128 = Bid128::default();
+  let mut qm2: Bid128 = Bid128::default();
+  mul_64x64_to_128(&mut albh, a.w[0], b.w[1]);
+  mul_64x64_to_128(&mut ahbl, b.w[0], a.w[1]);
+  mul_64x64_to_128(&mut albl, a.w[0], b.w[0]);
+  mul_64x64_to_128(&mut ahbh, a.w[1], b.w[1]);
+  add_128_128(&mut qm, albh, ahbl);
+  ql.w[0] = albl.w[0];
+  add_128_64(&mut qm2, qm, albl.w[1]);
+  add_128_64(qh, ahbh, qm2.w[1]);
+  ql.w[1] = qm2.w[0];
+}
+
+/// Get full 64x64-bit product.
+/// Note that this macro is used for `CX < 2^61`, `CY < 2^61`.
+macro_rules! mul_64x64_to_128_fast {
+  ($p:expr, $cx:expr, $cy:expr) => {
+    let cxh: Bid64 = (($cx >> 32) as u32) as u64;
+    let cxl: Bid64 = ($cx as u32) as u64;
+    let cyh: Bid64 = (($cy >> 32) as u32) as u64;
+    let cyl: Bid64 = ($cy as u32) as u64;
+
+    let mut pm = cxh * cyl;
+    let pl: Bid64 = cxl * cyl;
+    let ph: Bid64 = cxh * cyh;
+    pm += cxl * cyh;
+    pm += pl >> 32;
+
+    $p.w[1] = ph.wrapping_add(((pm >> 32) as u32) as u64);
+    $p.w[0] = (pm << 32).wrapping_add((pl as u32) as u64);
+  };
+}
+
+pub(crate) use mul_64x64_to_128_fast;
+
+/// Adds 128-bit value to 128-bit value, assuming no carry-out.
+pub fn add_128_128(r128: &mut Bid128, a128: Bid128, b128: Bid128) {
+  let mut q128: Bid128 = Bid128::default();
+  q128.w[1] = a128.w[1] + b128.w[1];
+  q128.w[0] = b128.w[0] + a128.w[0];
+  if q128.w[0] < b128.w[0] {
+    q128.w[1] += 1;
+  }
+  r128.w[1] = q128.w[1];
+  r128.w[0] = q128.w[0];
+}
+
+/// Adds 64-bit value to 128-bit value.
+#[inline(always)]
+pub fn add_128_64(r: &mut Bid128, x: Bid128, y: Bid64) {
+  let mut rh = x.w[1];
+  r.w[0] = y.wrapping_add(x.w[0]);
+  if r.w[0] < y {
+    rh = rh.wrapping_add(1);
+  }
+  r.w[1] = rh;
+}
+
+#[inline(always)]
+pub fn add_carry_out(r: &mut Bid64, co: &mut Bid64, x: Bid64, y: Bid64) {
+  *r = x.wrapping_add(y);
+  *co = if *r < x { 1 } else { 0 };
+}
+
+#[inline(always)]
+pub fn add_carry_in_out(r: &mut Bid64, co: &mut Bid64, x: Bid64, y: Bid64, ci: Bid64) {
+  let x1 = x.wrapping_add(ci);
+  *r = x1.wrapping_add(y);
+  *co = if (*r < x1) || (x1 < ci) { 1 } else { 0 }
+}
+
+macro_rules! shl_128_long {
+  ($q:expr, $a:expr, $k:expr) => {
+    if $k < 64 {
+      $q.w[1] = $a.w[1] << $k;
+      $q.w[1] |= $a.w[0] >> (64 - $k);
+      $q.w[0] = $a.w[0] << $k;
+    } else {
+      $q.w[1] = $a.w[0] << (($k) - 64);
+      $q.w[0] = 0;
+    }
+  };
+}
+
+macro_rules! shr_128_long {
+  ($q:expr, $a:expr, $k:expr) => {
+    if $k < 64 {
+      $q.w[0] = $a.w[0] >> $k;
+      $q.w[0] |= $a.w[1] << (64 - $k);
+      $q.w[1] = $a.w[1] >> $k;
+    } else {
+      $q.w[0] = $a.w[1] >> (($k) - 64);
+      $q.w[1] = 0;
+    }
+  };
+}
+
+/// Greater than.
+macro_rules! unsigned_compare_gt_128 {
+  ($a:expr, $b:expr) => {
+    ($a.w[1] > $b.w[1]) || (($a.w[1] == $b.w[1]) && ($a.w[0] > $b.w[0]))
+  };
+}
+
+/// Greater or equal.
+macro_rules! unsigned_compare_ge_128 {
+  ($a:expr, $b:expr) => {
+    ($a.w[1] > $b.w[1]) || (($a.w[1] == $b.w[1]) && ($a.w[0] >= $b.w[0]))
+  };
+}
+
+macro_rules! shr_128 {
+  ($q:expr, $a:expr, $k:expr) => {
+    $q.w[0] = $a.w[0] >> $k;
+    $q.w[0] |= $a.w[1] << (64 - $k);
+    $q.w[1] = $a.w[1] >> $k;
+  };
+}
+
+/// General BID128 pack function.
+#[inline(always)]
+pub fn bid_get_bid128(pres: &mut Bid128, sgn: Bid64, mut expon: i32, mut coeff: Bid128, rnd_mode: IdecRound, pfpsf: &mut IdecFlags) -> Bid128 {
+  // Is coeff == 10^34 ?
+  if coeff.w[1] == 0x0001ed09bead87c0 && coeff.w[0] == 0x378d8e6400000000 {
+    expon += 1;
+    // Set coefficient to 10^33
+    coeff.w[1] = 0x0000314dc6448d93;
+    coeff.w[0] = 0x38c15b0a00000000;
+  }
+  // Check overflow or ubderflow.
+  if !(0..=DECIMAL_MAX_EXPON_128).contains(&expon) {
+    // Check underflow.
+    if expon < 0 {
+      return handle_uf_128(pres, sgn, &mut expon, coeff, rnd_mode, pfpsf);
+    }
+    if expon - MAX_FORMAT_DIGITS_128 <= DECIMAL_MAX_EXPON_128 {
+      let t = bid_power10_table_128(MAX_FORMAT_DIGITS_128 - 1);
+      while unsigned_compare_gt_128!(t, coeff) && expon > DECIMAL_MAX_EXPON_128 {
+        coeff.w[1] = (coeff.w[1] << 3).wrapping_add(coeff.w[1] << 1).wrapping_add(coeff.w[0] >> 61).wrapping_add(coeff.w[0] >> 63);
+        let tmp2 = coeff.w[0] << 3;
+        coeff.w[0] = (coeff.w[0] << 1).wrapping_add(tmp2);
+        if coeff.w[0] < tmp2 {
+          coeff.w[1] = coeff.w[1].wrapping_add(1);
+        }
+        expon = expon.wrapping_sub(1);
+      }
+    }
+    if expon > DECIMAL_MAX_EXPON_128 {
+      if coeff.w[1] | coeff.w[0] == 0 {
+        pres.w[1] = sgn | ((DECIMAL_MAX_EXPON_128 as u64) << 49);
+        pres.w[0] = 0;
+        return *pres;
+      }
+      // Check overflow.
+      #[cfg(feature = "bid-set-status-flags")]
+      set_status_flags!(pfpsf, BID_OVERFLOW_EXCEPTION | BID_INEXACT_EXCEPTION);
+      #[cfg(all(not(feature = "ieee-round-nearest-ties-away"), not(feature = "ieee-round-nearest")))]
+      if rnd_mode == BID_ROUNDING_TO_ZERO || (sgn > 0 && rnd_mode == BID_ROUNDING_UP) || (sgn == 0 && rnd_mode == BID_ROUNDING_DOWN) {
+        pres.w[1] = sgn | LARGEST_BID128_HIGH;
+        pres.w[0] = LARGEST_BID128_LOW;
+      } else {
+        pres.w[1] = sgn | INFINITY_MASK64;
+        pres.w[0] = 0;
+      }
+      #[cfg(any(feature = "ieee-round-nearest-ties-away", feature = "ieee-round-nearest"))]
+      {
+        pres.w[1] = sgn | INFINITY_MASK64;
+        pres.w[0] = 0;
+      }
+      return *pres;
+    }
+  }
+  pres.w[0] = coeff.w[0];
+  let mut tmp = expon as u64;
+  tmp <<= 49;
+  pres.w[1] = sgn | tmp | coeff.w[1];
+  *pres
+}
+
+/// Macro for handling BID128 underflow.
+#[inline(always)]
+pub fn handle_uf_128(pres: &mut Bid128, sgn: Bid64, expon: &mut i32, mut cq: Bid128, _rnd_mode: IdecRound, _flags: &mut IdecFlags) -> Bid128 {
+  let mut _stemp: Bid128 = Default::default();
+  let mut _tmp: Bid128 = Default::default();
+  let mut _tmp1: Bid128 = Default::default();
+  let mut qh: Bid128 = Bid128::default();
+  let mut qh1: Bid128 = Bid128::default();
+  let mut ql: Bid128 = Default::default();
+  let mut carry: Bid64 = 0;
+  let mut _cy: Bid64 = 0;
+  let rmode: u32;
+  let mut _status: u32;
+
+  // Underlow occurs.
+  if *expon + MAX_FORMAT_DIGITS_128 < 0 {
+    #[cfg(feature = "bid-set-status-flags")]
+    set_status_flags!(_flags, BID_UNDERFLOW_EXCEPTION | BID_INEXACT_EXCEPTION);
+    pres.w[1] = sgn;
+    pres.w[0] = 0;
+    #[cfg(all(not(feature = "ieee-round-nearest-ties-away"), not(feature = "ieee-round-nearest")))]
+    if (sgn > 0 && _rnd_mode == BID_ROUNDING_DOWN) || (sgn == 0 && _rnd_mode == BID_ROUNDING_UP) {
+      pres.w[0] = 1;
+    }
+    return *pres;
+  }
+
+  let ed2 = 0 - *expon;
+  // Add rounding constant to 'cq'.
+  #[cfg(not(feature = "ieee-round-nearest-ties-away"))]
+  {
+    #[cfg(not(feature = "ieee-round-nearest"))]
+    {
+      rmode = if sgn > 0 && (_rnd_mode.wrapping_sub(1)) < 2 { 3 - _rnd_mode } else { _rnd_mode }
+    }
+    #[cfg(feature = "ieee-round-nearest")]
+    {
+      rmode = 0;
+    }
+  }
+  #[cfg(feature = "ieee-round-nearest-ties-away")]
+  {
+    rmode = 0;
+  }
+
+  let t128 = bid_round_const_table_128(rmode, ed2);
+  let cql = cq.w[0];
+  add_carry_out(&mut cq.w[0], &mut carry, t128.w[0], cql);
+  cq.w[1] = cq.w[1] + t128.w[1] + carry;
+
+  let tp128 = bid_reciprocals10_128(ed2);
+  mul_128x128_full(&mut qh, &mut ql, cq, tp128);
+  let amount = bid_recip_scale(ed2);
+
+  if amount >= 64 {
+    cq.w[0] = qh.w[1] >> (amount - 64);
+    cq.w[1] = 0;
+  } else {
+    shr_128!(cq, qh, amount);
+  }
+
+  *expon = 0;
+
+  #[cfg(not(feature = "ieee-round-nearest-ties-away"))]
+  {
+    let rounding_mode_is_zero = {
+      #[cfg(not(feature = "ieee-round-nearest"))]
+      {
+        _rnd_mode == 0
+      }
+      #[cfg(feature = "ieee-round-nearest")]
+      {
+        true
+      }
+    };
+    if rounding_mode_is_zero && cq.w[0] & 1 > 0 {
+      // Check whether fractional part of initial_P / 10 ^ ed1 is exactly .5
+      // Get the remainder.
+      shl_128_long!(qh1, qh, 128 - amount);
+      if qh1.w[1] == 0 && qh1.w[0] == 0 && (ql.w[1] < bid_reciprocals10_128(ed2).w[1] || (ql.w[1] == bid_reciprocals10_128(ed2).w[1] && ql.w[0] < bid_reciprocals10_128(ed2).w[0])) {
+        cq.w[0] -= 1;
+      }
+    }
+  }
+
+  #[cfg(feature = "bid-set-status-flags")]
+  if is_inexact!(_flags) {
+    set_status_flags!(_flags, BID_UNDERFLOW_EXCEPTION);
+  } else {
+    _status = BID_INEXACT_EXCEPTION;
+    // get remainder
+    shl_128_long!(qh1, qh, 128 - amount);
+    match rmode {
+      BID_ROUNDING_TO_NEAREST | BID_ROUNDING_TIES_AWAY => {
+        // test whether fractional part is 0
+        if qh1.w[1] == 0x8000000000000000 && qh1.w[0] == 0 && (ql.w[1] < bid_reciprocals10_128(ed2).w[1] || (ql.w[1] == bid_reciprocals10_128(ed2).w[1] && ql.w[0] < bid_reciprocals10_128(ed2).w[0])) {
+          _status = BID_EXACT_STATUS;
+        }
+      }
+      BID_ROUNDING_DOWN | BID_ROUNDING_TO_ZERO => {
+        if (qh1.w[1] == 0) && (qh1.w[0] == 0) && (ql.w[1] < bid_reciprocals10_128(ed2).w[1] || (ql.w[1] == bid_reciprocals10_128(ed2).w[1] && ql.w[0] < bid_reciprocals10_128(ed2).w[0])) {
+          _status = BID_EXACT_STATUS;
+        }
+      }
+      _ => {
+        // round up
+        add_carry_out(&mut _stemp.w[0], &mut _cy, ql.w[0], bid_reciprocals10_128(ed2).w[0]);
+        add_carry_in_out(&mut _stemp.w[1], &mut carry, ql.w[1], bid_reciprocals10_128(ed2).w[1], _cy);
+        shr_128_long!(qh, qh1, 128 - amount);
+        _tmp.w[0] = 1;
+        _tmp.w[1] = 0;
+        shl_128_long!(_tmp1, _tmp, amount);
+        qh.w[0] += carry;
+        if qh.w[0] < carry {
+          qh.w[1] += 1;
+        }
+        if unsigned_compare_ge_128!(qh, _tmp1) {
+          _status = BID_EXACT_STATUS;
+        }
+      }
+    }
+
+    if _status != BID_EXACT_STATUS {
+      set_status_flags!(_flags, BID_UNDERFLOW_EXCEPTION | _status);
+    }
+  }
+
+  pres.w[1] = sgn | cq.w[1];
+  pres.w[0] = cq.w[0];
+
+  *pres
+}

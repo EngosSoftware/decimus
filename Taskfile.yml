@@ -1,0 +1,159 @@
+version: '3'
+
+silent: true
+
+tasks:
+
+  all:
+    desc: Builds all releases
+    cmds:
+      - task: linux
+      - task: musl
+      - task: wasm
+      - task: wasi
+
+  build-all:
+    desc: Builds in debug mode with all configurations
+    cmds:
+      - task: build
+      - task: build-no-default-features
+      - task: build-all-features
+
+  build:
+    desc: Builds in debug mode
+    cmds:
+      - cmd: cargo +stable build
+
+  build-no-default-features:
+    desc: Builds in debug mode without default features
+    cmds:
+      - cmd: cargo +stable build --no-default-features
+
+  build-all-features:
+    desc: Builds in debug mode without all features enabled
+    cmds:
+      - cmd: cargo +stable build --no-default-features
+
+  clean:
+    desc: Cleans all targets
+    cmds:
+      - cmd: cargo clean
+
+  clippy-all:
+    desc: Runs all clippy configurations
+    cmds:
+      - task: clippy
+      - task: clippy-no-default-features
+      - task: clippy-all-features
+
+  clippy:
+    desc: Runs clippy for all targets
+    cmds:
+      - cmd: cargo +stable clippy --all-targets
+
+  clippy-no-default-features:
+    desc: Runs clippy for all targets without default features
+    cmds:
+      - cmd: cargo +stable clippy --all-targets --no-default-features
+
+  clippy-all-features:
+    desc: Runs clippy for all targets with all features enabled
+    cmds:
+      - cmd: cargo +stable clippy --all-targets --all-features
+
+  cov:
+    desc: Generates code coverage report
+    cmds:
+      - cmd: cargo llvm-cov clean
+      - cmd: cargo llvm-cov --no-cfg-coverage
+      - cmd: cargo llvm-cov report --html
+      - cmd: cargo my llvmCodeCoverageReportLink
+
+  doc:
+    desc: Generates documentation
+    cmds:
+      - cmd: cargo +stable doc
+
+  doc-open:
+    desc: Generates documentation and opens in browser
+    cmds:
+      - cmd: cargo +stable doc --open
+
+  doc-priv:
+    desc: Generates documentation
+    cmds:
+      - cmd: cargo +stable doc --document-private-items
+
+  doc-priv-open:
+    desc: Generates documentation and opens in browser
+    cmds:
+      - cmd: cargo +stable doc --document-private-items --open
+
+  fmt:
+    desc: Runs code formatter
+    cmds:
+      - cmd: cargo +nightly fmt
+
+  musl:
+    desc: Builds the MUSL binary
+    cmds:
+      - cmd: cargo +stable build --release --target=x86_64-unknown-linux-musl
+
+  linux:
+    desc: Builds the release binary
+    cmds:
+      - cmd: cargo +stable build --release --target=x86_64-unknown-linux-gnu
+
+  test-all:
+    desc: Runs tests in debug mode in all configurations
+    cmds:
+      - task: test
+      - task: test-no-default-features
+      - task: test-all-features
+
+  test:
+    desc: Runs tests in debug mode
+    cmds:
+      - cmd: cargo +stable test
+
+  test-no-default-features:
+    desc: Runs tests in debug mode without default features
+    cmds:
+      - cmd: cargo +stable test --no-default-features
+
+  test-all-features:
+    desc: Runs tests in debug mode with all features enabled
+    cmds:
+      - cmd: cargo +stable test --all-features
+
+  testn-all:
+    desc: Runs tests in debug mode using nextest in all configurations
+    cmds:
+      - task: testn
+      - task: testn-no-default-features
+      - task: testn-all-features
+
+  testn:
+    desc: Runs tests in debug mode using nextest
+    cmds:
+      - cmd: cargo +stable nextest run
+
+  testn-no-default-features:
+    desc: Runs tests in debug mode using nextest without default features
+    cmds:
+      - cmd: cargo +stable nextest run --no-default-features
+
+  testn-all-features:
+    desc: Runs tests in debug mode using nextest with all features
+    cmds:
+      - cmd: cargo +stable nextest run --all-features
+
+  wasm:
+    desc: Builds the WASM binary
+    cmds:
+      - cmd: cargo +stable build --release --target=wasm32-unknown-unknown
+
+  wasi:
+    desc: Builds the WASI binary
+    cmds:
+      - cmd: cargo +stable build --release --target=wasm32-wasip1

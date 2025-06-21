@@ -1,0 +1,20 @@
+name: WASI
+
+on:
+  push:
+    branches:
+      - main
+      - release/**
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1
+      - run: cargo +stable build --release --target=wasm32-wasip1
