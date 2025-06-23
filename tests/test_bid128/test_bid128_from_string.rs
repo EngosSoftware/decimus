@@ -1,10 +1,10 @@
 use super::*;
-use decimus::{Bid128, IdecFlags, bid128_from_string};
+use decimus::{BidUint128, IdecFlags, bid128_from_string};
 
 macro_rules! check {
   ($rnd_mode:expr, $x:expr, $expected:expr, $expected_flags:expr) => {
     let mut actual_flags: IdecFlags = 0;
-    let expected = Bid128::new($expected[0], $expected[1]);
+    let expected = BidUint128 { w: [$expected[1], $expected[0]] };
     let actual = bid128_from_string($x, $rnd_mode, &mut actual_flags);
     assert_eq!(expected, actual);
     assert_eq!($expected_flags, actual_flags, "Flags error, expected = {:02X}, actual = {:02X}", $expected_flags, actual_flags);

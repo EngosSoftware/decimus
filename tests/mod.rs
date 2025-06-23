@@ -1,11 +1,7 @@
 use decimus::IdecFlags;
 
 mod test_bid128;
-mod test_bid64;
 mod test_debug;
-mod test_is_nan;
-mod test_is_snan;
-mod test_is_zero;
 
 /// Utility function that returns expected status flags based on feature flags.
 #[allow(unused_variables)]

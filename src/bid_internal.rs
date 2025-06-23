@@ -2,9 +2,7 @@
 
 use crate::bid_decimal_data::*;
 use crate::bid_functions::*;
-use crate::bid64::Bid64;
-use crate::bid256::Bid256;
-use crate::{Bid128, IdecFlags, IdecRound};
+use crate::{BidUint64, BidUint128, IdecFlags, IdecRound};
 
 //pub const EXP_MIN: u64 = 0x0000000000000000;
 // EXP_MIN = (-6176 + 6176) << 49
@@ -13,6 +11,8 @@ use crate::{Bid128, IdecFlags, IdecRound};
 pub const EXP_MAX_P1: u64 = 0x6000000000000000;
 // EXP_MAX + 1 = (6111 + 6176 + 1) << 49
 pub const EXP_P1: u64 = 0x0002000000000000;
+
+pub const SIGNMASK32: u32 = 0x80000000;
 
 //pub const P7: i32 = 7;
 //pub const P16: i32 = 16;
@@ -57,10 +57,10 @@ macro_rules! tolower_macro {
 pub(crate) use tolower_macro;
 
 pub struct DecDigits {
-  pub digits: i32,
+  pub digits: u32,
   pub threshold_hi: u64,
   pub threshold_lo: u64,
-  pub digits1: i32,
+  pub digits1: u32,
 }
 
 /// Table BID_NR_DIGITS
@@ -189,6 +189,14 @@ pub const BID_NR_DIGITS: [DecDigits; 113] = [
   DecDigits{ digits:  0, threshold_hi: 0x0001ed09bead87c0, threshold_lo: 0x378d8e6400000000, digits1: 34 }  // 112-bit n < 10^34
 ];
 
+macro_rules! bid_ten2k64 {
+  ($index:expr) => {
+    BID_TEN2K64[$index as usize]
+  };
+}
+
+pub(crate) use bid_ten2k64;
+
 /// Table BID_TEN2K64
 ///
 /// BID_TEN2K64\[i\] = 10^i (where 0 <= i <= 19)
@@ -216,13 +224,13 @@ pub const BID_TEN2K64: [u64; 20] = [
   0x8ac7230489e80000, // 10^19 (20 digits)
 ];
 
-macro_rules! bid_ten2k64 {
+macro_rules! bid_ten2k128 {
   ($index:expr) => {
-    BID_TEN2K64[$index as usize]
+    BID_TEN2K128[$index as usize]
   };
 }
 
-pub(crate) use bid_ten2k64;
+pub(crate) use bid_ten2k128;
 
 /// Table BID_TEN2K128
 ///
@@ -230,38 +238,41 @@ pub(crate) use bid_ten2k64;
 ///
 /// The 64-bit word order is Lo, Hi.
 #[rustfmt::skip]
-const BID_TEN2K128: [Bid128; 19] = [
-  Bid128 { w: [0x6bc75e2d63100000, 0x0000000000000005] }, // 10^20
-  Bid128 { w: [0x35c9adc5dea00000, 0x0000000000000036] }, // 10^21
-  Bid128 { w: [0x19e0c9bab2400000, 0x000000000000021e] }, // 10^22
-  Bid128 { w: [0x02c7e14af6800000, 0x000000000000152d] }, // 10^23
-  Bid128 { w: [0x1bcecceda1000000, 0x000000000000d3c2] }, // 10^24
-  Bid128 { w: [0x161401484a000000, 0x0000000000084595] }, // 10^25
-  Bid128 { w: [0xdcc80cd2e4000000, 0x000000000052b7d2] }, // 10^26
-  Bid128 { w: [0x9fd0803ce8000000, 0x00000000033b2e3c] }, // 10^27
-  Bid128 { w: [0x3e25026110000000, 0x00000000204fce5e] }, // 10^28
-  Bid128 { w: [0x6d7217caa0000000, 0x00000001431e0fae] }, // 10^29
-  Bid128 { w: [0x4674edea40000000, 0x0000000c9f2c9cd0] }, // 10^30
-  Bid128 { w: [0xc0914b2680000000, 0x0000007e37be2022] }, // 10^31
-  Bid128 { w: [0x85acef8100000000, 0x000004ee2d6d415b] }, // 10^32
-  Bid128 { w: [0x38c15b0a00000000, 0x0000314dc6448d93] }, // 10^33
-  Bid128 { w: [0x378d8e6400000000, 0x0001ed09bead87c0] }, // 10^34
-  Bid128 { w: [0x2b878fe800000000, 0x0013426172c74d82] }, // 10^35
-  Bid128 { w: [0xb34b9f1000000000, 0x00c097ce7bc90715] }, // 10^36
-  Bid128 { w: [0x00f436a000000000, 0x0785ee10d5da46d9] }, // 10^37
-  Bid128 { w: [0x098a224000000000, 0x4b3b4ca85a86c47a] }, // 10^38 (39 digits)
+pub const BID_TEN2K128: [BidUint128; 19] = [
+  BidUint128 { w: [0x6bc75e2d63100000, 0x0000000000000005] }, // 10^20
+  BidUint128 { w: [0x35c9adc5dea00000, 0x0000000000000036] }, // 10^21
+  BidUint128 { w: [0x19e0c9bab2400000, 0x000000000000021e] }, // 10^22
+  BidUint128 { w: [0x02c7e14af6800000, 0x000000000000152d] }, // 10^23
+  BidUint128 { w: [0x1bcecceda1000000, 0x000000000000d3c2] }, // 10^24
+  BidUint128 { w: [0x161401484a000000, 0x0000000000084595] }, // 10^25
+  BidUint128 { w: [0xdcc80cd2e4000000, 0x000000000052b7d2] }, // 10^26
+  BidUint128 { w: [0x9fd0803ce8000000, 0x00000000033b2e3c] }, // 10^27
+  BidUint128 { w: [0x3e25026110000000, 0x00000000204fce5e] }, // 10^28
+  BidUint128 { w: [0x6d7217caa0000000, 0x00000001431e0fae] }, // 10^29
+  BidUint128 { w: [0x4674edea40000000, 0x0000000c9f2c9cd0] }, // 10^30
+  BidUint128 { w: [0xc0914b2680000000, 0x0000007e37be2022] }, // 10^31
+  BidUint128 { w: [0x85acef8100000000, 0x000004ee2d6d415b] }, // 10^32
+  BidUint128 { w: [0x38c15b0a00000000, 0x0000314dc6448d93] }, // 10^33
+  BidUint128 { w: [0x378d8e6400000000, 0x0001ed09bead87c0] }, // 10^34
+  BidUint128 { w: [0x2b878fe800000000, 0x0013426172c74d82] }, // 10^35
+  BidUint128 { w: [0xb34b9f1000000000, 0x00c097ce7bc90715] }, // 10^36
+  BidUint128 { w: [0x00f436a000000000, 0x0785ee10d5da46d9] }, // 10^37
+  BidUint128 { w: [0x098a224000000000, 0x4b3b4ca85a86c47a] }, // 10^38 (39 digits)
 ];
 
-#[inline(always)]
-pub fn bid_ten2k128(index: i32) -> Bid128 {
-  BID_TEN2K128[index as usize]
+macro_rules! bid_midpoint64 {
+  ($index:expr) => {
+    BID_MIDPOINT64[$index as usize]
+  };
 }
+
+pub(crate) use bid_midpoint64;
 
 /// Table BID_MIDPOINT64
 ///
 /// BID_MIDPOINT64\[i - 1\] = 1/2 * 10^i = 5 * 10^(i-1) (where 1 <= i <= 19)
 #[rustfmt::skip]
-const BID_MIDPOINT64: [u64; 19] = [
+pub const BID_MIDPOINT64: [u64; 19] = [
   0x0000000000000005, // 1/2 * 10^1 = 5 * 10^0
   0x0000000000000032, // 1/2 * 10^2 = 5 * 10^1
   0x00000000000001f4, // 1/2 * 10^3 = 5 * 10^2
@@ -283,10 +294,13 @@ const BID_MIDPOINT64: [u64; 19] = [
   0x4563918244f40000, // 1/2 * 10^19 = 5 * 10^18
 ];
 
-#[inline(always)]
-pub fn bid_midpoint64(index: i32) -> u64 {
-  BID_MIDPOINT64[index as usize]
+macro_rules! bid_midpoint128 {
+  ($index:expr) => {
+    BID_MIDPOINT128[$index as usize]
+  };
 }
+
+pub(crate) use bid_midpoint128;
 
 /// Table BID_MIDPOINT128
 ///
@@ -294,86 +308,92 @@ pub fn bid_midpoint64(index: i32) -> u64 {
 ///
 /// The 64-bit word order is L, H.
 #[rustfmt::skip]
-const BID_MIDPOINT128: [Bid128; 19] = [
-  Bid128 { w: [0xb5e3af16b1880000, 0x0000000000000002] }, // 1/2 * 10^20 = 5 * 10^19
-  Bid128 { w: [0x1ae4d6e2ef500000, 0x000000000000001b] }, // 1/2 * 10^21 = 5 * 10^20
-  Bid128 { w: [0x0cf064dd59200000, 0x000000000000010f] }, // 1/2 * 10^22 = 5 * 10^21
-  Bid128 { w: [0x8163f0a57b400000, 0x0000000000000a96] }, // 1/2 * 10^23 = 5 * 10^22
-  Bid128 { w: [0x0de76676d0800000, 0x00000000000069e1] }, // 1/2 * 10^24 = 5 * 10^23
-  Bid128 { w: [0x8b0a00a425000000, 0x00000000000422ca] }, // 1/2 * 10^25 = 5 * 10^24
-  Bid128 { w: [0x6e64066972000000, 0x0000000000295be9] }, // 1/2 * 10^26 = 5 * 10^25
-  Bid128 { w: [0x4fe8401e74000000, 0x00000000019d971e] }, // 1/2 * 10^27 = 5 * 10^26
-  Bid128 { w: [0x1f12813088000000, 0x000000001027e72f] }, // 1/2 * 10^28 = 5 * 10^27
-  Bid128 { w: [0x36b90be550000000, 0x00000000a18f07d7] }, // 1/2 * 10^29 = 5 * 10^28
-  Bid128 { w: [0x233a76f520000000, 0x000000064f964e68] }, // 1/2 * 10^30 = 5 * 10^29
-  Bid128 { w: [0x6048a59340000000, 0x0000003f1bdf1011] }, // 1/2 * 10^31 = 5 * 10^30
-  Bid128 { w: [0xc2d677c080000000, 0x0000027716b6a0ad] }, // 1/2 * 10^32 = 5 * 10^31
-  Bid128 { w: [0x9c60ad8500000000, 0x000018a6e32246c9] }, // 1/2 * 10^33 = 5 * 10^32
-  Bid128 { w: [0x1bc6c73200000000, 0x0000f684df56c3e0] }, // 1/2 * 10^34 = 5 * 10^33
-  Bid128 { w: [0x15c3c7f400000000, 0x0009a130b963a6c1] }, // 1/2 * 10^35 = 5 * 10^34
-  Bid128 { w: [0xd9a5cf8800000000, 0x00604be73de4838a] }, // 1/2 * 10^36 = 5 * 10^35
-  Bid128 { w: [0x807a1b5000000000, 0x03c2f7086aed236c] }, // 1/2 * 10^37 = 5 * 10^36
-  Bid128 { w: [0x04c5112000000000, 0x259da6542d43623d] }, // 1/2 * 10^38 = 5 * 10^37
+pub const BID_MIDPOINT128: [BidUint128; 19] = [
+  BidUint128 { w: [0xb5e3af16b1880000, 0x0000000000000002] }, // 1/2 * 10^20 = 5 * 10^19
+  BidUint128 { w: [0x1ae4d6e2ef500000, 0x000000000000001b] }, // 1/2 * 10^21 = 5 * 10^20
+  BidUint128 { w: [0x0cf064dd59200000, 0x000000000000010f] }, // 1/2 * 10^22 = 5 * 10^21
+  BidUint128 { w: [0x8163f0a57b400000, 0x0000000000000a96] }, // 1/2 * 10^23 = 5 * 10^22
+  BidUint128 { w: [0x0de76676d0800000, 0x00000000000069e1] }, // 1/2 * 10^24 = 5 * 10^23
+  BidUint128 { w: [0x8b0a00a425000000, 0x00000000000422ca] }, // 1/2 * 10^25 = 5 * 10^24
+  BidUint128 { w: [0x6e64066972000000, 0x0000000000295be9] }, // 1/2 * 10^26 = 5 * 10^25
+  BidUint128 { w: [0x4fe8401e74000000, 0x00000000019d971e] }, // 1/2 * 10^27 = 5 * 10^26
+  BidUint128 { w: [0x1f12813088000000, 0x000000001027e72f] }, // 1/2 * 10^28 = 5 * 10^27
+  BidUint128 { w: [0x36b90be550000000, 0x00000000a18f07d7] }, // 1/2 * 10^29 = 5 * 10^28
+  BidUint128 { w: [0x233a76f520000000, 0x000000064f964e68] }, // 1/2 * 10^30 = 5 * 10^29
+  BidUint128 { w: [0x6048a59340000000, 0x0000003f1bdf1011] }, // 1/2 * 10^31 = 5 * 10^30
+  BidUint128 { w: [0xc2d677c080000000, 0x0000027716b6a0ad] }, // 1/2 * 10^32 = 5 * 10^31
+  BidUint128 { w: [0x9c60ad8500000000, 0x000018a6e32246c9] }, // 1/2 * 10^33 = 5 * 10^32
+  BidUint128 { w: [0x1bc6c73200000000, 0x0000f684df56c3e0] }, // 1/2 * 10^34 = 5 * 10^33
+  BidUint128 { w: [0x15c3c7f400000000, 0x0009a130b963a6c1] }, // 1/2 * 10^35 = 5 * 10^34
+  BidUint128 { w: [0xd9a5cf8800000000, 0x00604be73de4838a] }, // 1/2 * 10^36 = 5 * 10^35
+  BidUint128 { w: [0x807a1b5000000000, 0x03c2f7086aed236c] }, // 1/2 * 10^37 = 5 * 10^36
+  BidUint128 { w: [0x04c5112000000000, 0x259da6542d43623d] }, // 1/2 * 10^38 = 5 * 10^37
 ];
 
-#[inline(always)]
-pub fn bid_midpoint128(index: i32) -> Bid128 {
-  BID_MIDPOINT128[index as usize]
+macro_rules! bid_ten2mk128 {
+  ($index:expr) => {
+    BID_TEN2MK128[$index as usize]
+  };
 }
+
+pub(crate) use bid_ten2mk128;
 
 /// Table BID_TEN2MK128
 ///
 /// BID_TEN2MK128\[k - 1\] = 10^(-k) * 2^exp (k) (where 1 <= k <= 34)
 /// and exp(k) = bid_shiftright128\[k - 1\] + 128
 #[rustfmt::skip]
-const BID_TEN2MK128: [Bid128; 34] = [
-  Bid128{ w: [0x999999999999999a, 0x1999999999999999] }, //  10^(-1) * 2^128
-  Bid128{ w: [0x28f5c28f5c28f5c3, 0x028f5c28f5c28f5c] }, //  10^(-2) * 2^128
-  Bid128{ w: [0x9db22d0e56041894, 0x004189374bc6a7ef] }, //  10^(-3) * 2^128
-  Bid128{ w: [0x4af4f0d844d013aa, 0x00346dc5d6388659] }, //  10^(-4) * 2^131
-  Bid128{ w: [0x08c3f3e0370cdc88, 0x0029f16b11c6d1e1] }, //  10^(-5) * 2^134
-  Bid128{ w: [0x6d698fe69270b06d, 0x00218def416bdb1a] }, //  10^(-6) * 2^137
-  Bid128{ w: [0xaf0f4ca41d811a47, 0x0035afe535795e90] }, //  10^(-7) * 2^141
-  Bid128{ w: [0xbf3f70834acdaea0, 0x002af31dc4611873] }, //  10^(-8) * 2^144
-  Bid128{ w: [0x65cc5a02a23e254d, 0x00225c17d04dad29] }, //  10^(-9) * 2^147
-  Bid128{ w: [0x6fad5cd10396a214, 0x0036f9bfb3af7b75] }, // 10^(-10) * 2^151
-  Bid128{ w: [0xbfbde3da69454e76, 0x002bfaffc2f2c92a] }, // 10^(-11) * 2^154
-  Bid128{ w: [0x32fe4fe1edd10b92, 0x00232f33025bd422] }, // 10^(-12) * 2^157
-  Bid128{ w: [0x84ca19697c81ac1c, 0x00384b84d092ed03] }, // 10^(-13) * 2^161
-  Bid128{ w: [0x03d4e1213067bce4, 0x002d09370d425736] }, // 10^(-14) * 2^164
-  Bid128{ w: [0x3643e74dc052fd83, 0x0024075f3dceac2b] }, // 10^(-15) * 2^167
-  Bid128{ w: [0x56d30baf9a1e626b, 0x0039a5652fb11378] }, // 10^(-16) * 2^171
-  Bid128{ w: [0x12426fbfae7eb522, 0x002e1dea8c8da92d] }, // 10^(-17) * 2^174
-  Bid128{ w: [0x41cebfcc8b9890e8, 0x0024e4bba3a48757] }, // 10^(-18) * 2^177
-  Bid128{ w: [0x694acc7a78f41b0d, 0x003b07929f6da558] }, // 10^(-19) * 2^181
-  Bid128{ w: [0xbaa23d2ec729af3e, 0x002f394219248446] }, // 10^(-20) * 2^184
-  Bid128{ w: [0xfbb4fdbf05baf298, 0x0025c768141d369e] }, // 10^(-21) * 2^187
-  Bid128{ w: [0x2c54c931a2c4b759, 0x003c7240202ebdcb] }, // 10^(-22) * 2^191
-  Bid128{ w: [0x89dd6dc14f03c5e1, 0x00305b66802564a2] }, // 10^(-23) * 2^194
-  Bid128{ w: [0xd4b1249aa59c9e4e, 0x0026af8533511d4e] }, // 10^(-24) * 2^197
-  Bid128{ w: [0x544ea0f76f60fd49, 0x003de5a1ebb4fbb1] }, // 10^(-25) * 2^201
-  Bid128{ w: [0x76a54d92bf80caa1, 0x00318481895d9627] }, // 10^(-26) * 2^204
-  Bid128{ w: [0x921dd7a89933d54e, 0x00279d346de4781f] }, // 10^(-27) * 2^207
-  Bid128{ w: [0x8362f2a75b862215, 0x003f61ed7ca0c032] }, // 10^(-28) * 2^211
-  Bid128{ w: [0xcf825bb91604e811, 0x0032b4bdfd4d668e] }, // 10^(-29) * 2^214
-  Bid128{ w: [0x0c684960de6a5341, 0x00289097fdd7853f] }, // 10^(-30) * 2^217
-  Bid128{ w: [0x3d203ab3e521dc34, 0x002073accb12d0ff] }, // 10^(-31) * 2^220
-  Bid128{ w: [0x2e99f7863b696053, 0x0033ec47ab514e65] }, // 10^(-32) * 2^224
-  Bid128{ w: [0x587b2c6b62bab376, 0x002989d2ef743eb7] }, // 10^(-33) * 2^227
-  Bid128{ w: [0xad2f56bc4efbc2c5, 0x00213b0f25f69892] }, // 10^(-34) * 2^230
+pub const BID_TEN2MK128: [BidUint128; 34] = [
+  BidUint128{ w: [0x999999999999999a, 0x1999999999999999] }, //  10^(-1) * 2^128
+  BidUint128{ w: [0x28f5c28f5c28f5c3, 0x028f5c28f5c28f5c] }, //  10^(-2) * 2^128
+  BidUint128{ w: [0x9db22d0e56041894, 0x004189374bc6a7ef] }, //  10^(-3) * 2^128
+  BidUint128{ w: [0x4af4f0d844d013aa, 0x00346dc5d6388659] }, //  10^(-4) * 2^131
+  BidUint128{ w: [0x08c3f3e0370cdc88, 0x0029f16b11c6d1e1] }, //  10^(-5) * 2^134
+  BidUint128{ w: [0x6d698fe69270b06d, 0x00218def416bdb1a] }, //  10^(-6) * 2^137
+  BidUint128{ w: [0xaf0f4ca41d811a47, 0x0035afe535795e90] }, //  10^(-7) * 2^141
+  BidUint128{ w: [0xbf3f70834acdaea0, 0x002af31dc4611873] }, //  10^(-8) * 2^144
+  BidUint128{ w: [0x65cc5a02a23e254d, 0x00225c17d04dad29] }, //  10^(-9) * 2^147
+  BidUint128{ w: [0x6fad5cd10396a214, 0x0036f9bfb3af7b75] }, // 10^(-10) * 2^151
+  BidUint128{ w: [0xbfbde3da69454e76, 0x002bfaffc2f2c92a] }, // 10^(-11) * 2^154
+  BidUint128{ w: [0x32fe4fe1edd10b92, 0x00232f33025bd422] }, // 10^(-12) * 2^157
+  BidUint128{ w: [0x84ca19697c81ac1c, 0x00384b84d092ed03] }, // 10^(-13) * 2^161
+  BidUint128{ w: [0x03d4e1213067bce4, 0x002d09370d425736] }, // 10^(-14) * 2^164
+  BidUint128{ w: [0x3643e74dc052fd83, 0x0024075f3dceac2b] }, // 10^(-15) * 2^167
+  BidUint128{ w: [0x56d30baf9a1e626b, 0x0039a5652fb11378] }, // 10^(-16) * 2^171
+  BidUint128{ w: [0x12426fbfae7eb522, 0x002e1dea8c8da92d] }, // 10^(-17) * 2^174
+  BidUint128{ w: [0x41cebfcc8b9890e8, 0x0024e4bba3a48757] }, // 10^(-18) * 2^177
+  BidUint128{ w: [0x694acc7a78f41b0d, 0x003b07929f6da558] }, // 10^(-19) * 2^181
+  BidUint128{ w: [0xbaa23d2ec729af3e, 0x002f394219248446] }, // 10^(-20) * 2^184
+  BidUint128{ w: [0xfbb4fdbf05baf298, 0x0025c768141d369e] }, // 10^(-21) * 2^187
+  BidUint128{ w: [0x2c54c931a2c4b759, 0x003c7240202ebdcb] }, // 10^(-22) * 2^191
+  BidUint128{ w: [0x89dd6dc14f03c5e1, 0x00305b66802564a2] }, // 10^(-23) * 2^194
+  BidUint128{ w: [0xd4b1249aa59c9e4e, 0x0026af8533511d4e] }, // 10^(-24) * 2^197
+  BidUint128{ w: [0x544ea0f76f60fd49, 0x003de5a1ebb4fbb1] }, // 10^(-25) * 2^201
+  BidUint128{ w: [0x76a54d92bf80caa1, 0x00318481895d9627] }, // 10^(-26) * 2^204
+  BidUint128{ w: [0x921dd7a89933d54e, 0x00279d346de4781f] }, // 10^(-27) * 2^207
+  BidUint128{ w: [0x8362f2a75b862215, 0x003f61ed7ca0c032] }, // 10^(-28) * 2^211
+  BidUint128{ w: [0xcf825bb91604e811, 0x0032b4bdfd4d668e] }, // 10^(-29) * 2^214
+  BidUint128{ w: [0x0c684960de6a5341, 0x00289097fdd7853f] }, // 10^(-30) * 2^217
+  BidUint128{ w: [0x3d203ab3e521dc34, 0x002073accb12d0ff] }, // 10^(-31) * 2^220
+  BidUint128{ w: [0x2e99f7863b696053, 0x0033ec47ab514e65] }, // 10^(-32) * 2^224
+  BidUint128{ w: [0x587b2c6b62bab376, 0x002989d2ef743eb7] }, // 10^(-33) * 2^227
+  BidUint128{ w: [0xad2f56bc4efbc2c5, 0x00213b0f25f69892] }, // 10^(-34) * 2^230
 ];
 
-#[inline(always)]
-pub fn bid_ten2mk128(index: i32) -> Bid128 {
-  BID_TEN2MK128[index as usize]
+macro_rules! bid_maskhigh128 {
+  ($index:expr) => {
+    BID_MASKHIGH128[$index as usize]
+  };
 }
+
+pub(crate) use bid_maskhigh128;
 
 /// Table BID_MASKHIGH128
 ///
 /// BID_MASKHIGH128 contains the mask to apply to the top 128 bits of the 
 /// 128x128-bit product in order to obtain the high bits of f2*.
 #[rustfmt::skip]
-const BID_MASKHIGH128: [Bid64; 34] = [
+pub const BID_MASKHIGH128: [BidUint64; 34] = [
   0x0000000000000000, //  0 = 128 - 128 bits
   0x0000000000000000, //  0 = 128 - 128 bits
   0x0000000000000000, //  0 = 128 - 128 bits
@@ -410,17 +430,20 @@ const BID_MASKHIGH128: [Bid64; 34] = [
   0x0000003fffffffff  // 38 = 230 - 192 bits
 ];
 
-#[inline(always)]
-pub fn bid_maskhigh128(index: i32) -> Bid64 {
-  BID_MASKHIGH128[index as usize]
+macro_rules! bid_shiftright128 {
+  ($index:expr) => {
+    BID_SHIFTRIGHT128[$index as usize]
+  };
 }
+
+pub(crate) use bid_shiftright128;
 
 /// Table BID_SHIFTRIGHT128
 ///
 /// BID_SHIFTRIGHT128 contains the right shift count to obtain C2*
 /// from the top 128 bits of the 128x128-bit product C2 * Kx.
 #[rustfmt::skip]
-const BID_SHIFTRIGHT128: [i32; 34] = [
+pub const BID_SHIFTRIGHT128: [i32; 34] = [
   0,   // 128 - 128
   0,   // 128 - 128
   0,   // 128 - 128
@@ -457,10 +480,13 @@ const BID_SHIFTRIGHT128: [i32; 34] = [
   102, // 230 - 128
 ];
 
-#[inline(always)]
-pub fn bid_shiftright128(index: i32) -> i32 {
-  BID_SHIFTRIGHT128[index as usize]
+macro_rules! bid_ten2mk128trunc {
+  ($index:expr) => {
+    BID_TEN2MK128TRUNC[$index as usize]
+  };
 }
+
+pub(crate) use bid_ten2mk128trunc;
 
 /// Table BID_TEN2MK128TRUNC 
 ///
@@ -468,47 +494,50 @@ pub fn bid_shiftright128(index: i32) -> i32 {
 ///
 /// The 64-bit word order is Lo, Hi.
 #[rustfmt::skip]
-const BID_TEN2MK128TRUNC:[Bid128; 34] = [
-  Bid128{ w: [0x9999999999999999, 0x1999999999999999] },	//  10^(-1) * 2^128
-  Bid128{ w: [0x28f5c28f5c28f5c2, 0x028f5c28f5c28f5c] },	//  10^(-2) * 2^128
-  Bid128{ w: [0x9db22d0e56041893, 0x004189374bc6a7ef] },	//  10^(-3) * 2^128
-  Bid128{ w: [0x4af4f0d844d013a9, 0x00346dc5d6388659] },	//  10^(-4) * 2^131
-  Bid128{ w: [0x08c3f3e0370cdc87, 0x0029f16b11c6d1e1] },	//  10^(-5) * 2^134
-  Bid128{ w: [0x6d698fe69270b06c, 0x00218def416bdb1a] },	//  10^(-6) * 2^137
-  Bid128{ w: [0xaf0f4ca41d811a46, 0x0035afe535795e90] },	//  10^(-7) * 2^141
-  Bid128{ w: [0xbf3f70834acdae9f, 0x002af31dc4611873] },	//  10^(-8) * 2^144
-  Bid128{ w: [0x65cc5a02a23e254c, 0x00225c17d04dad29] },	//  10^(-9) * 2^147
-  Bid128{ w: [0x6fad5cd10396a213, 0x0036f9bfb3af7b75] },	// 10^(-10) * 2^151
-  Bid128{ w: [0xbfbde3da69454e75, 0x002bfaffc2f2c92a] },	// 10^(-11) * 2^154
-  Bid128{ w: [0x32fe4fe1edd10b91, 0x00232f33025bd422] },	// 10^(-12) * 2^157
-  Bid128{ w: [0x84ca19697c81ac1b, 0x00384b84d092ed03] },	// 10^(-13) * 2^161
-  Bid128{ w: [0x03d4e1213067bce3, 0x002d09370d425736] },	// 10^(-14) * 2^164
-  Bid128{ w: [0x3643e74dc052fd82, 0x0024075f3dceac2b] },	// 10^(-15) * 2^167
-  Bid128{ w: [0x56d30baf9a1e626a, 0x0039a5652fb11378] },	// 10^(-16) * 2^171
-  Bid128{ w: [0x12426fbfae7eb521, 0x002e1dea8c8da92d] },	// 10^(-17) * 2^174
-  Bid128{ w: [0x41cebfcc8b9890e7, 0x0024e4bba3a48757] },	// 10^(-18) * 2^177
-  Bid128{ w: [0x694acc7a78f41b0c, 0x003b07929f6da558] },	// 10^(-19) * 2^181
-  Bid128{ w: [0xbaa23d2ec729af3d, 0x002f394219248446] },	// 10^(-20) * 2^184
-  Bid128{ w: [0xfbb4fdbf05baf297, 0x0025c768141d369e] },	// 10^(-21) * 2^187
-  Bid128{ w: [0x2c54c931a2c4b758, 0x003c7240202ebdcb] },	// 10^(-22) * 2^191
-  Bid128{ w: [0x89dd6dc14f03c5e0, 0x00305b66802564a2] },	// 10^(-23) * 2^194
-  Bid128{ w: [0xd4b1249aa59c9e4d, 0x0026af8533511d4e] },	// 10^(-24) * 2^197
-  Bid128{ w: [0x544ea0f76f60fd48, 0x003de5a1ebb4fbb1] },	// 10^(-25) * 2^201
-  Bid128{ w: [0x76a54d92bf80caa0, 0x00318481895d9627] },	// 10^(-26) * 2^204
-  Bid128{ w: [0x921dd7a89933d54d, 0x00279d346de4781f] },	// 10^(-27) * 2^207
-  Bid128{ w: [0x8362f2a75b862214, 0x003f61ed7ca0c032] },	// 10^(-28) * 2^211
-  Bid128{ w: [0xcf825bb91604e810, 0x0032b4bdfd4d668e] },	// 10^(-29) * 2^214
-  Bid128{ w: [0x0c684960de6a5340, 0x00289097fdd7853f] },	// 10^(-30) * 2^217
-  Bid128{ w: [0x3d203ab3e521dc33, 0x002073accb12d0ff] },	// 10^(-31) * 2^220
-  Bid128{ w: [0x2e99f7863b696052, 0x0033ec47ab514e65] },	// 10^(-32) * 2^224
-  Bid128{ w: [0x587b2c6b62bab375, 0x002989d2ef743eb7] },	// 10^(-33) * 2^227
-  Bid128{ w: [0xad2f56bc4efbc2c4, 0x00213b0f25f69892] },	// 10^(-34) * 2^230
+pub const BID_TEN2MK128TRUNC:[BidUint128; 34] = [
+  BidUint128{ w: [0x9999999999999999, 0x1999999999999999] },	//  10^(-1) * 2^128
+  BidUint128{ w: [0x28f5c28f5c28f5c2, 0x028f5c28f5c28f5c] },	//  10^(-2) * 2^128
+  BidUint128{ w: [0x9db22d0e56041893, 0x004189374bc6a7ef] },	//  10^(-3) * 2^128
+  BidUint128{ w: [0x4af4f0d844d013a9, 0x00346dc5d6388659] },	//  10^(-4) * 2^131
+  BidUint128{ w: [0x08c3f3e0370cdc87, 0x0029f16b11c6d1e1] },	//  10^(-5) * 2^134
+  BidUint128{ w: [0x6d698fe69270b06c, 0x00218def416bdb1a] },	//  10^(-6) * 2^137
+  BidUint128{ w: [0xaf0f4ca41d811a46, 0x0035afe535795e90] },	//  10^(-7) * 2^141
+  BidUint128{ w: [0xbf3f70834acdae9f, 0x002af31dc4611873] },	//  10^(-8) * 2^144
+  BidUint128{ w: [0x65cc5a02a23e254c, 0x00225c17d04dad29] },	//  10^(-9) * 2^147
+  BidUint128{ w: [0x6fad5cd10396a213, 0x0036f9bfb3af7b75] },	// 10^(-10) * 2^151
+  BidUint128{ w: [0xbfbde3da69454e75, 0x002bfaffc2f2c92a] },	// 10^(-11) * 2^154
+  BidUint128{ w: [0x32fe4fe1edd10b91, 0x00232f33025bd422] },	// 10^(-12) * 2^157
+  BidUint128{ w: [0x84ca19697c81ac1b, 0x00384b84d092ed03] },	// 10^(-13) * 2^161
+  BidUint128{ w: [0x03d4e1213067bce3, 0x002d09370d425736] },	// 10^(-14) * 2^164
+  BidUint128{ w: [0x3643e74dc052fd82, 0x0024075f3dceac2b] },	// 10^(-15) * 2^167
+  BidUint128{ w: [0x56d30baf9a1e626a, 0x0039a5652fb11378] },	// 10^(-16) * 2^171
+  BidUint128{ w: [0x12426fbfae7eb521, 0x002e1dea8c8da92d] },	// 10^(-17) * 2^174
+  BidUint128{ w: [0x41cebfcc8b9890e7, 0x0024e4bba3a48757] },	// 10^(-18) * 2^177
+  BidUint128{ w: [0x694acc7a78f41b0c, 0x003b07929f6da558] },	// 10^(-19) * 2^181
+  BidUint128{ w: [0xbaa23d2ec729af3d, 0x002f394219248446] },	// 10^(-20) * 2^184
+  BidUint128{ w: [0xfbb4fdbf05baf297, 0x0025c768141d369e] },	// 10^(-21) * 2^187
+  BidUint128{ w: [0x2c54c931a2c4b758, 0x003c7240202ebdcb] },	// 10^(-22) * 2^191
+  BidUint128{ w: [0x89dd6dc14f03c5e0, 0x00305b66802564a2] },	// 10^(-23) * 2^194
+  BidUint128{ w: [0xd4b1249aa59c9e4d, 0x0026af8533511d4e] },	// 10^(-24) * 2^197
+  BidUint128{ w: [0x544ea0f76f60fd48, 0x003de5a1ebb4fbb1] },	// 10^(-25) * 2^201
+  BidUint128{ w: [0x76a54d92bf80caa0, 0x00318481895d9627] },	// 10^(-26) * 2^204
+  BidUint128{ w: [0x921dd7a89933d54d, 0x00279d346de4781f] },	// 10^(-27) * 2^207
+  BidUint128{ w: [0x8362f2a75b862214, 0x003f61ed7ca0c032] },	// 10^(-28) * 2^211
+  BidUint128{ w: [0xcf825bb91604e810, 0x0032b4bdfd4d668e] },	// 10^(-29) * 2^214
+  BidUint128{ w: [0x0c684960de6a5340, 0x00289097fdd7853f] },	// 10^(-30) * 2^217
+  BidUint128{ w: [0x3d203ab3e521dc33, 0x002073accb12d0ff] },	// 10^(-31) * 2^220
+  BidUint128{ w: [0x2e99f7863b696052, 0x0033ec47ab514e65] },	// 10^(-32) * 2^224
+  BidUint128{ w: [0x587b2c6b62bab375, 0x002989d2ef743eb7] },	// 10^(-33) * 2^227
+  BidUint128{ w: [0xad2f56bc4efbc2c4, 0x00213b0f25f69892] },	// 10^(-34) * 2^230
 ];
 
-#[inline(always)]
-pub fn bid_ten2mk128trunc(index: i32) -> Bid128 {
-  BID_TEN2MK128TRUNC[index as usize]
+macro_rules! bid_onehalf128 {
+  ($index:expr) => {
+    BID_ONEHALF128[$index as usize]
+  };
 }
+
+pub(crate) use bid_onehalf128;
 
 /// Table BID_ONEHALF128
 ///
@@ -517,7 +546,7 @@ pub fn bid_ten2mk128trunc(index: i32) -> Bid128 {
 ///
 /// The 64-bit word order is Lo, Hi.
 #[rustfmt::skip]
-const BID_ONEHALF128: [Bid64; 34] = [
+pub const BID_ONEHALF128: [BidUint64; 34] = [
   0x0000000000000000, //  0 bits
   0x0000000000000000, //  0 bits
   0x0000000000000000, //  0 bits
@@ -554,112 +583,170 @@ const BID_ONEHALF128: [Bid64; 34] = [
   0x0000002000000000, // 102 bits
 ];
 
-#[inline(always)]
-pub fn bid_onehalf128(index: i32) -> Bid64 {
-  BID_ONEHALF128[index as usize]
+/// Adds 64-bit value to 128-bit value.
+macro_rules! add_128_64 {
+  ($r:expr,$x:expr,$y:expr) => {
+    let mut rh: BidUint64 = $x.w[1];
+    $r.w[0] = $y.wrapping_add($x.w[0]);
+    if $r.w[0] < $y {
+      rh = rh.wrapping_add(1);
+    }
+    $r.w[1] = rh;
+  };
 }
+
+pub(crate) use add_128_64;
+
+/// Adds 128-bit value to 128-bit value, assuming no carry-out.
+macro_rules! add_128_128 {
+  ($r128:expr, $a128:expr, $b128:expr) => {
+    let mut q128: BidUint128 = BidUint128::default();
+    q128.w[1] = $a128.w[1] + $b128.w[1];
+    q128.w[0] = $b128.w[0] + $a128.w[0];
+    if q128.w[0] < $b128.w[0] {
+      q128.w[1] += 1;
+    }
+    $r128.w[1] = q128.w[1];
+    $r128.w[0] = q128.w[0];
+  };
+}
+
+macro_rules! add_carry_out {
+  ($r:expr, $co:expr, $x:expr, $y: expr) => {
+    $r = $x.wrapping_add($y);
+    $co = if $r < $x { 1 } else { 0 };
+  };
+}
+
+pub(crate) use add_carry_out;
+
+macro_rules! add_carry_in_out {
+  ($r:expr, $co:expr, $x:expr, $y:expr, $ci:expr) => {
+    let x1: BidUint64 = $x.wrapping_add($ci);
+    $r = x1.wrapping_add($y);
+    $co = if ($r < x1) || (x1 < $ci) { 1 } else { 0 }
+  };
+}
+
+pub(crate) use add_carry_in_out;
 
 /// Returns 64 x 64 bit product.
-#[inline(always)]
-pub fn mul_64x64_to_128mach(p: &mut Bid128, cx: Bid64, cy: Bid64) {
-  let cxh: Bid64 = ((cx >> 32) as u32) as u64;
-  let cxl: Bid64 = (cx as u32) as u64;
-  let cyh: Bid64 = ((cy >> 32) as u32) as u64;
-  let cyl: Bid64 = (cy as u32) as u64;
-  let mut pm: Bid64 = cxh.wrapping_mul(cyl);
-  let mut ph: Bid64 = cxh.wrapping_mul(cyh);
-  let pl: Bid64 = cxl.wrapping_mul(cyl);
-  let pm2: Bid64 = cxl.wrapping_mul(cyh);
-  ph = ph.wrapping_add(((pm >> 32) as u32) as u64);
-  pm = ((pm as u32) as u64).wrapping_add(pm2).wrapping_add(((pl >> 32) as u32) as u64);
-  p.w[1] = ph.wrapping_add(((pm >> 32) as u32) as u64);
-  p.w[0] = (pm << 32).wrapping_add((pl as u32) as u64);
+macro_rules! mul_64x64_to_128mach {
+  ($p:expr, $cx:expr, $cy:expr) => {
+    let cxh: BidUint64 = (($cx >> 32) as u32) as u64;
+    let cxl: BidUint64 = ($cx as u32) as u64;
+    let cyh: BidUint64 = (($cy >> 32) as u32) as u64;
+    let cyl: BidUint64 = ($cy as u32) as u64;
+    let mut pm: BidUint64 = cxh.wrapping_mul(cyl);
+    let mut ph: BidUint64 = cxh.wrapping_mul(cyh);
+    let pl: BidUint64 = cxl.wrapping_mul(cyl);
+    let pm2: BidUint64 = cxl.wrapping_mul(cyh);
+    ph = ph.wrapping_add(((pm >> 32) as u32) as u64);
+    pm = ((pm as u32) as u64).wrapping_add(pm2).wrapping_add(((pl >> 32) as u32) as u64);
+    $p.w[1] = ph.wrapping_add(((pm >> 32) as u32) as u64);
+    $p.w[0] = (pm << 32).wrapping_add((pl as u32) as u64);
+  };
 }
+
+pub(crate) use mul_64x64_to_128mach;
 
 /// Returns full 64 x 64 bit product.
-#[inline(always)]
-pub fn mul_64x64_to_128(p: &mut Bid128, cx: Bid64, cy: Bid64) {
-  let cxh: Bid64 = ((cx >> 32) as u32) as u64;
-  let cxl: Bid64 = (cx as u32) as u64;
-  let cyh: Bid64 = ((cy >> 32) as u32) as u64;
-  let cyl: Bid64 = (cy as u32) as u64;
-  let mut pm = cxh.wrapping_mul(cyl);
-  let mut ph = cxh.wrapping_mul(cyh);
-  let pl = cxl.wrapping_mul(cyl);
-  let pm2 = cxl.wrapping_mul(cyh);
-  ph = ph.wrapping_add(((pm >> 32) as u32) as u64);
-  pm = ((pm as u32) as u64).wrapping_add(pm2).wrapping_add(((pl >> 32) as u32) as u64);
-  p.w[1] = ph.wrapping_add(((pm >> 32) as u32) as u64);
-  p.w[0] = (pm << 32).wrapping_add((pl as u32) as u64);
+macro_rules! mul_64x64_to_128 {
+  ($p:expr,$cx:expr,$cy:expr) => {
+    let cxh: BidUint64 = (($cx >> 32) as u32) as u64;
+    let cxl: BidUint64 = ($cx as u32) as u64;
+    let cyh: BidUint64 = (($cy >> 32) as u32) as u64;
+    let cyl: BidUint64 = ($cy as u32) as u64;
+    let mut pm = cxh.wrapping_mul(cyl);
+    let mut ph = cxh.wrapping_mul(cyh);
+    let pl = cxl.wrapping_mul(cyl);
+    let pm2 = cxl.wrapping_mul(cyh);
+    ph = ph.wrapping_add(((pm >> 32) as u32) as u64);
+    pm = ((pm as u32) as u64).wrapping_add(pm2).wrapping_add(((pl >> 32) as u32) as u64);
+    $p.w[1] = ph.wrapping_add(((pm >> 32) as u32) as u64);
+    $p.w[0] = (pm << 32).wrapping_add((pl as u32) as u64);
+  };
 }
 
-#[inline(always)]
-pub fn mul_128x64_to_128(q128: &mut Bid128, a64: Bid64, b128: Bid128) {
-  let albh_l: u64 = a64.wrapping_mul(b128.w[1]);
-  mul_64x64_to_128mach(q128, a64, b128.w[0]);
-  q128.w[1] = q128.w[1].wrapping_add(albh_l);
+pub(crate) use mul_64x64_to_128;
+
+macro_rules! mul_128x64_to_128 {
+  ($q128:expr, $a64:expr, $b128:expr) => {
+    let albh_l: BidUint64 = $a64.wrapping_mul($b128.w[1]);
+    mul_64x64_to_128mach!($q128, $a64, $b128.w[0]);
+    $q128.w[1] = $q128.w[1].wrapping_add(albh_l);
+  };
 }
 
-#[inline(always)]
-pub fn mul_128x128_to_256(r: &mut Bid256, x: Bid128, y: Bid128) {
-  let mut qll = Bid128::default();
-  let mut qlh = Bid128::default();
-  let mut phl = Bid64::default();
-  let mut phh = Bid64::default();
-  let mut co1 = Bid64::default();
-  let mut co2 = Bid64::default();
-  mul_64x128_full(&mut phl, &mut qll, x.w[0], y);
-  mul_64x128_full(&mut phh, &mut qlh, x.w[1], y);
-  r.w[0] = qll.w[0];
-  add_carry_out(&mut r.w[1], &mut co1, qlh.w[0], qll.w[1]);
-  add_carry_in_out(&mut r.w[2], &mut co2, qlh.w[1], phl, co1);
-  r.w[3] = phh.wrapping_add(co2);
+pub(crate) use mul_128x64_to_128;
+
+macro_rules! mul_64x128_full {
+  ($ph:expr, $ql:expr, $x:expr, $y:expr) => {
+    let mut albl = BidUint128::default();
+    let mut albh = BidUint128::default();
+    mul_64x64_to_128!(albh, $x, $y.w[1]);
+    mul_64x64_to_128!(albl, $x, $y.w[0]);
+    $ql.w[0] = albl.w[0];
+    let mut qm2 = BidUint128::default();
+    add_128_64!(qm2, albh, albl.w[1]);
+    $ql.w[1] = qm2.w[0];
+    $ph = qm2.w[1];
+  };
 }
 
-#[inline(always)]
-pub fn mul_64x128_full(ph: &mut Bid64, ql: &mut Bid128, x: Bid64, y: Bid128) {
-  let mut albl = Bid128::default();
-  let mut albh = Bid128::default();
-  mul_64x64_to_128(&mut albh, x, y.w[1]);
-  mul_64x64_to_128(&mut albl, x, y.w[0]);
-  ql.w[0] = albl.w[0];
-  let mut qm2 = Bid128::default();
-  add_128_64(&mut qm2, albh, albl.w[1]);
-  ql.w[1] = qm2.w[0];
-  *ph = qm2.w[1];
+pub(crate) use mul_64x128_full;
+
+macro_rules! mul_128x128_to_256 {
+  ($r:expr, $x:expr, $y:expr) => {
+    let mut qll = BidUint128::default();
+    let mut qlh = BidUint128::default();
+    let phl: BidUint64;
+    let phh: BidUint64;
+    let co1: BidUint64;
+    let co2: BidUint64;
+    mul_64x128_full!(phl, qll, $x.w[0], $y);
+    mul_64x128_full!(phh, qlh, $x.w[1], $y);
+    $r.w[0] = qll.w[0];
+    add_carry_out!($r.w[1], co1, qlh.w[0], qll.w[1]);
+    add_carry_in_out!($r.w[2], co2, qlh.w[1], phl, co1);
+    $r.w[3] = phh.wrapping_add(co2);
+  };
 }
 
-#[inline(always)]
-pub fn mul_128x128_full(qh: &mut Bid128, ql: &mut Bid128, a: Bid128, b: Bid128) {
-  let mut albl: Bid128 = Bid128::default();
-  let mut albh: Bid128 = Bid128::default();
-  let mut ahbl: Bid128 = Bid128::default();
-  let mut ahbh: Bid128 = Bid128::default();
-  let mut qm: Bid128 = Bid128::default();
-  let mut qm2: Bid128 = Bid128::default();
-  mul_64x64_to_128(&mut albh, a.w[0], b.w[1]);
-  mul_64x64_to_128(&mut ahbl, b.w[0], a.w[1]);
-  mul_64x64_to_128(&mut albl, a.w[0], b.w[0]);
-  mul_64x64_to_128(&mut ahbh, a.w[1], b.w[1]);
-  add_128_128(&mut qm, albh, ahbl);
-  ql.w[0] = albl.w[0];
-  add_128_64(&mut qm2, qm, albl.w[1]);
-  add_128_64(qh, ahbh, qm2.w[1]);
-  ql.w[1] = qm2.w[0];
+pub(crate) use mul_128x128_to_256;
+
+macro_rules! mul_128x128_full {
+  ($qh:expr, $ql:expr, $a:expr, $b:expr) => {
+    let mut albl: BidUint128 = BidUint128::default();
+    let mut albh: BidUint128 = BidUint128::default();
+    let mut ahbl: BidUint128 = BidUint128::default();
+    let mut ahbh: BidUint128 = BidUint128::default();
+    let mut qm: BidUint128 = BidUint128::default();
+    let mut qm2: BidUint128 = BidUint128::default();
+    mul_64x64_to_128!(albh, $a.w[0], $b.w[1]);
+    mul_64x64_to_128!(ahbl, $b.w[0], $a.w[1]);
+    mul_64x64_to_128!(albl, $a.w[0], $b.w[0]);
+    mul_64x64_to_128!(ahbh, $a.w[1], $b.w[1]);
+    add_128_128!(qm, albh, ahbl);
+    $ql.w[0] = albl.w[0];
+    add_128_64!(qm2, qm, albl.w[1]);
+    add_128_64!($qh, ahbh, qm2.w[1]);
+    $ql.w[1] = qm2.w[0];
+  };
 }
 
 /// Get full 64x64-bit product.
 /// Note that this macro is used for `CX < 2^61`, `CY < 2^61`.
 macro_rules! mul_64x64_to_128_fast {
   ($p:expr, $cx:expr, $cy:expr) => {
-    let cxh: Bid64 = (($cx >> 32) as u32) as u64;
-    let cxl: Bid64 = ($cx as u32) as u64;
-    let cyh: Bid64 = (($cy >> 32) as u32) as u64;
-    let cyl: Bid64 = ($cy as u32) as u64;
+    let cxh: BidUint64 = (($cx >> 32) as u32) as u64;
+    let cxl: BidUint64 = ($cx as u32) as u64;
+    let cyh: BidUint64 = (($cy >> 32) as u32) as u64;
+    let cyl: BidUint64 = ($cy as u32) as u64;
 
     let mut pm = cxh * cyl;
-    let pl: Bid64 = cxl * cyl;
-    let ph: Bid64 = cxh * cyh;
+    let pl: BidUint64 = cxl * cyl;
+    let ph: BidUint64 = cxh * cyh;
     pm += cxl * cyh;
     pm += pl >> 32;
 
@@ -669,42 +756,6 @@ macro_rules! mul_64x64_to_128_fast {
 }
 
 pub(crate) use mul_64x64_to_128_fast;
-
-/// Adds 128-bit value to 128-bit value, assuming no carry-out.
-pub fn add_128_128(r128: &mut Bid128, a128: Bid128, b128: Bid128) {
-  let mut q128: Bid128 = Bid128::default();
-  q128.w[1] = a128.w[1] + b128.w[1];
-  q128.w[0] = b128.w[0] + a128.w[0];
-  if q128.w[0] < b128.w[0] {
-    q128.w[1] += 1;
-  }
-  r128.w[1] = q128.w[1];
-  r128.w[0] = q128.w[0];
-}
-
-/// Adds 64-bit value to 128-bit value.
-#[inline(always)]
-pub fn add_128_64(r: &mut Bid128, x: Bid128, y: Bid64) {
-  let mut rh = x.w[1];
-  r.w[0] = y.wrapping_add(x.w[0]);
-  if r.w[0] < y {
-    rh = rh.wrapping_add(1);
-  }
-  r.w[1] = rh;
-}
-
-#[inline(always)]
-pub fn add_carry_out(r: &mut Bid64, co: &mut Bid64, x: Bid64, y: Bid64) {
-  *r = x.wrapping_add(y);
-  *co = if *r < x { 1 } else { 0 };
-}
-
-#[inline(always)]
-pub fn add_carry_in_out(r: &mut Bid64, co: &mut Bid64, x: Bid64, y: Bid64, ci: Bid64) {
-  let x1 = x.wrapping_add(ci);
-  *r = x1.wrapping_add(y);
-  *co = if (*r < x1) || (x1 < ci) { 1 } else { 0 }
-}
 
 macro_rules! shl_128_long {
   ($q:expr, $a:expr, $k:expr) => {
@@ -756,7 +807,7 @@ macro_rules! shr_128 {
 
 /// General BID128 pack function.
 #[inline(always)]
-pub fn bid_get_bid128(pres: &mut Bid128, sgn: Bid64, mut expon: i32, mut coeff: Bid128, rnd_mode: IdecRound, pfpsf: &mut IdecFlags) -> Bid128 {
+pub fn bid_get_bid128(pres: &mut BidUint128, sgn: BidUint64, mut expon: i32, mut coeff: BidUint128, rnd_mode: IdecRound, pfpsf: &mut IdecFlags) -> BidUint128 {
   // Is coeff == 10^34 ?
   if coeff.w[1] == 0x0001ed09bead87c0 && coeff.w[0] == 0x378d8e6400000000 {
     expon += 1;
@@ -771,7 +822,7 @@ pub fn bid_get_bid128(pres: &mut Bid128, sgn: Bid64, mut expon: i32, mut coeff: 
       return handle_uf_128(pres, sgn, &mut expon, coeff, rnd_mode, pfpsf);
     }
     if expon - MAX_FORMAT_DIGITS_128 <= DECIMAL_MAX_EXPON_128 {
-      let t = bid_power10_table_128(MAX_FORMAT_DIGITS_128 - 1);
+      let t = bid_power10_table_128!(MAX_FORMAT_DIGITS_128 - 1);
       while unsigned_compare_gt_128!(t, coeff) && expon > DECIMAL_MAX_EXPON_128 {
         coeff.w[1] = (coeff.w[1] << 3).wrapping_add(coeff.w[1] << 1).wrapping_add(coeff.w[0] >> 61).wrapping_add(coeff.w[0] >> 63);
         let tmp2 = coeff.w[0] << 3;
@@ -814,17 +865,18 @@ pub fn bid_get_bid128(pres: &mut Bid128, sgn: Bid64, mut expon: i32, mut coeff: 
   *pres
 }
 
-/// Macro for handling BID128 underflow.
+/// Handling BID128 underflow.
 #[inline(always)]
-pub fn handle_uf_128(pres: &mut Bid128, sgn: Bid64, expon: &mut i32, mut cq: Bid128, _rnd_mode: IdecRound, _flags: &mut IdecFlags) -> Bid128 {
-  let mut _stemp: Bid128 = Default::default();
-  let mut _tmp: Bid128 = Default::default();
-  let mut _tmp1: Bid128 = Default::default();
-  let mut qh: Bid128 = Bid128::default();
-  let mut qh1: Bid128 = Bid128::default();
-  let mut ql: Bid128 = Default::default();
-  let mut carry: Bid64 = 0;
-  let mut _cy: Bid64 = 0;
+pub fn handle_uf_128(pres: &mut BidUint128, sgn: BidUint64, expon: &mut i32, mut cq: BidUint128, _rnd_mode: IdecRound, _flags: &mut IdecFlags) -> BidUint128 {
+  let mut _stemp: BidUint128 = Default::default();
+  let mut _tmp: BidUint128 = Default::default();
+  let mut _tmp1: BidUint128 = Default::default();
+  let mut qh: BidUint128 = BidUint128::default();
+  let mut qh1: BidUint128 = BidUint128::default();
+  let mut ql: BidUint128 = Default::default();
+  #[allow(unused_mut)]
+  let mut carry: BidUint64;
+  let mut _cy: BidUint64 = 0;
   let rmode: u32;
   let mut _status: u32;
 
@@ -859,14 +911,13 @@ pub fn handle_uf_128(pres: &mut Bid128, sgn: Bid64, expon: &mut i32, mut cq: Bid
     rmode = 0;
   }
 
-  let t128 = bid_round_const_table_128(rmode, ed2);
-  let cql = cq.w[0];
-  add_carry_out(&mut cq.w[0], &mut carry, t128.w[0], cql);
+  let t128 = bid_round_const_table_128!(rmode, ed2);
+  add_carry_out!(cq.w[0], carry, t128.w[0], cq.w[0]);
   cq.w[1] = cq.w[1] + t128.w[1] + carry;
 
-  let tp128 = bid_reciprocals10_128(ed2);
-  mul_128x128_full(&mut qh, &mut ql, cq, tp128);
-  let amount = bid_recip_scale(ed2);
+  let tp128 = bid_reciprocals10_128!(ed2);
+  mul_128x128_full!(qh, ql, cq, tp128);
+  let amount = bid_recip_scale!(ed2);
 
   if amount >= 64 {
     cq.w[0] = qh.w[1] >> (amount - 64);
@@ -893,7 +944,7 @@ pub fn handle_uf_128(pres: &mut Bid128, sgn: Bid64, expon: &mut i32, mut cq: Bid
       // Check whether fractional part of initial_P / 10 ^ ed1 is exactly .5
       // Get the remainder.
       shl_128_long!(qh1, qh, 128 - amount);
-      if qh1.w[1] == 0 && qh1.w[0] == 0 && (ql.w[1] < bid_reciprocals10_128(ed2).w[1] || (ql.w[1] == bid_reciprocals10_128(ed2).w[1] && ql.w[0] < bid_reciprocals10_128(ed2).w[0])) {
+      if qh1.w[1] == 0 && qh1.w[0] == 0 && (ql.w[1] < bid_reciprocals10_128!(ed2).w[1] || (ql.w[1] == bid_reciprocals10_128!(ed2).w[1] && ql.w[0] < bid_reciprocals10_128!(ed2).w[0])) {
         cq.w[0] -= 1;
       }
     }
@@ -909,19 +960,19 @@ pub fn handle_uf_128(pres: &mut Bid128, sgn: Bid64, expon: &mut i32, mut cq: Bid
     match rmode {
       BID_ROUNDING_TO_NEAREST | BID_ROUNDING_TIES_AWAY => {
         // test whether fractional part is 0
-        if qh1.w[1] == 0x8000000000000000 && qh1.w[0] == 0 && (ql.w[1] < bid_reciprocals10_128(ed2).w[1] || (ql.w[1] == bid_reciprocals10_128(ed2).w[1] && ql.w[0] < bid_reciprocals10_128(ed2).w[0])) {
+        if qh1.w[1] == 0x8000000000000000 && qh1.w[0] == 0 && (ql.w[1] < bid_reciprocals10_128!(ed2).w[1] || (ql.w[1] == bid_reciprocals10_128!(ed2).w[1] && ql.w[0] < bid_reciprocals10_128!(ed2).w[0])) {
           _status = BID_EXACT_STATUS;
         }
       }
       BID_ROUNDING_DOWN | BID_ROUNDING_TO_ZERO => {
-        if (qh1.w[1] == 0) && (qh1.w[0] == 0) && (ql.w[1] < bid_reciprocals10_128(ed2).w[1] || (ql.w[1] == bid_reciprocals10_128(ed2).w[1] && ql.w[0] < bid_reciprocals10_128(ed2).w[0])) {
+        if (qh1.w[1] == 0) && (qh1.w[0] == 0) && (ql.w[1] < bid_reciprocals10_128!(ed2).w[1] || (ql.w[1] == bid_reciprocals10_128!(ed2).w[1] && ql.w[0] < bid_reciprocals10_128!(ed2).w[0])) {
           _status = BID_EXACT_STATUS;
         }
       }
       _ => {
         // round up
-        add_carry_out(&mut _stemp.w[0], &mut _cy, ql.w[0], bid_reciprocals10_128(ed2).w[0]);
-        add_carry_in_out(&mut _stemp.w[1], &mut carry, ql.w[1], bid_reciprocals10_128(ed2).w[1], _cy);
+        add_carry_out!(_stemp.w[0], _cy, ql.w[0], bid_reciprocals10_128!(ed2).w[0]);
+        add_carry_in_out!(_stemp.w[1], carry, ql.w[1], bid_reciprocals10_128!(ed2).w[1], _cy);
         shr_128_long!(qh, qh1, 128 - amount);
         _tmp.w[0] = 1;
         _tmp.w[1] = 0;

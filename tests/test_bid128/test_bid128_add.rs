@@ -1,30 +1,34 @@
 use super::*;
-use decimus::{Bid128, IdecFlags, bid128_add, bid128_from_string};
+use decimus::{BidUint128, IdecFlags, bid128_add, bid128_from_string};
 
 macro_rules! check {
   ($rnd_mode:expr, $x:expr, $y:expr, $expected:expr, $expected_flags:expr) => {
     let mut actual_flags: IdecFlags = 0;
-    let expected = Bid128::new($expected[0], $expected[1]);
-    let actual = bid128_add(Bid128::new($x[0], $x[1]), Bid128::new($y[0], $y[1]), $rnd_mode, &mut actual_flags);
+    let expected = BidUint128 { w: [$expected[1], $expected[0]] };
+    let actual = bid128_add(BidUint128 { w: [$x[1], $x[0]] }, BidUint128 { w: [$y[1], $y[0]] }, $rnd_mode, &mut actual_flags);
     assert_eq!(expected, actual);
-    assert_eq!($expected_flags, actual_flags, "Result flags error, expected = {:02X}, actual = {:02X}", $expected_flags, actual_flags);
+    assert_eq!($expected_flags, actual_flags, "Result flags error, expected = 0x{:02X}, actual = 0x{:02X}", $expected_flags, actual_flags);
   };
   ($rnd_mode:expr, $x_rnd_mode:expr, $y_rnd_mode:expr, $x:expr, $y:expr, $expected:expr, $expected_flags:expr, $x_flags:expr, $y_flags:expr) => {
     let mut actual_flags: IdecFlags = 0;
-    let expected = Bid128::new($expected[0], $expected[1]);
-    let x: Bid128 = bid128_from_string($x, $x_rnd_mode, &mut actual_flags);
+    let expected = BidUint128 { w: [$expected[1], $expected[0]] };
+    let x: BidUint128 = bid128_from_string($x, $x_rnd_mode, &mut actual_flags);
     assert_eq!($x_flags, actual_flags, "X flags error, expected = {:02X}, actual = {:02X}", $x_flags, actual_flags);
-    let y: Bid128 = bid128_from_string($y, $y_rnd_mode, &mut actual_flags);
+    let y: BidUint128 = bid128_from_string($y, $y_rnd_mode, &mut actual_flags);
     assert_eq!($y_flags, actual_flags, "Y flags error, expected = {:02X}, actual = {:02X}", $y_flags, actual_flags);
     let actual = bid128_add(x, y, $rnd_mode, &mut actual_flags);
     assert_eq!(expected, actual);
-    assert_eq!($expected_flags, actual_flags, "Result flags error, expected = {:02X}, actual = {:02X}", $expected_flags, actual_flags);
+    assert_eq!($expected_flags, actual_flags, "Result flags error, expected = 0x{:02X}, actual = 0x{:02X}", $expected_flags, actual_flags);
   };
 }
 
 #[test]
 fn _0001() {
   check!(0, [0x3040000000000000, 0x0000000000000000], [0x3040000000000000, 0x0000000000000000], [0x3040000000000000, 0x0000000000000000], F_00_00);
+  //     to nearest even                          0                  +                      0                      =                  0   expected no exceptions
+  //     ┬   ─┬────────────────────────────────────    ─┬────────────────────────────────────    ─┬────────────────────────────────────   ─┬─────
+  //     │    └ argument x                              └ argument y                              └ expected result                        └ expected exception flags
+  //     └ rounding mode
 }
 
 #[test]

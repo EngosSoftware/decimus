@@ -7,6 +7,10 @@ tasks:
   all:
     desc: Builds all releases
     cmds:
+      - task: clean
+      - task: build-all
+      - task: clippy-all
+      - task: test-all
       - task: linux
       - task: musl
       - task: wasm
@@ -65,7 +69,9 @@ tasks:
     desc: Generates code coverage report
     cmds:
       - cmd: cargo llvm-cov clean
-      - cmd: cargo llvm-cov --no-cfg-coverage
+      - cmd: cargo llvm-cov --quiet --no-cfg-coverage --no-report
+      - cmd: cargo llvm-cov --quiet --no-cfg-coverage --no-default-features --no-report
+      - cmd: cargo llvm-cov --quiet --no-cfg-coverage --all-features
       - cmd: cargo llvm-cov report --html
       - cmd: cargo my llvmCodeCoverageReportLink
 

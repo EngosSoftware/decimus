@@ -35,10 +35,15 @@
 [cc-url]: https://github.com/EngosSoftware/decimus/blob/main/CODE_OF_CONDUCT.md
 [mbh-badge]: https://img.shields.io/badge/Made_by-HUMAN-d35400.svg
 [repository-url]: https://github.com/EngosSoftware/decimus
+[original library]: https://www.intel.com/content/www/us/en/developer/articles/tool/intel-decimal-floating-point-math-library.html
 
 ## Overview
 
-Decimal Floating-Point Math Library for Rust.
+Decimal floating-point arithmetic.
+This crate is a Rust port of the [original library].
+See the enclosed [EULA](./eula.txt) notice of the [original library].
+
+---
 
 **WORK IN PROGRESS**
 
@@ -49,7 +54,7 @@ Licensed under either of
 - [MIT license][mit-url] (see [LICENSE-MIT][mit-license-url]) or
 - [Apache License, Version 2.0][apache-url] (see [LICENSE][apache-license-url] and [NOTICE][apache-notice-url])
 
-at your option.
+at your option. See the enclosed [EULA](./eula.txt) notice of the [original library].
 
 ## Contribution
 

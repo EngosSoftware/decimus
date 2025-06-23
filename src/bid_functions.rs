@@ -10,7 +10,7 @@ pub const BID_ROUNDING_UP: u32 = 0x2;
 /// Rounding towards zero.
 pub const BID_ROUNDING_TO_ZERO: u32 = 0x3;
 
-/// Rounding zway from zero.
+/// Rounding away from zero.
 pub const BID_ROUNDING_TIES_AWAY: u32 = 0x4;
 
 /// Flag indicating no exceptions.

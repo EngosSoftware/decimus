@@ -1,5 +1,5 @@
-/// Type alias for exception flags.
+/// Exception flags.
 pub type IdecFlags = u32;
 
-/// Type alias for rounding modes.
+/// Rounding modes.
 pub type IdecRound = u32;
