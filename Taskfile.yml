@@ -163,3 +163,21 @@ tasks:
     desc: Builds the WASI binary
     cmds:
       - cmd: cargo +stable build --release --target=wasm32-wasip1
+
+  hack-all:
+    cmds:
+      - task: hack-build
+      - task: hack-clippy
+      - task: hack-test
+
+  hack-build:
+    cmds:
+      - cmd: cargo +stable hack build --feature-powerset
+
+  hack-clippy:
+    cmds:
+      - cmd: cargo +stable hack clippy --feature-powerset
+
+  hack-test:
+    cmds:
+      - cmd: cargo +stable hack test --feature-powerset --quiet

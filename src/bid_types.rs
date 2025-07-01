@@ -31,12 +31,10 @@ pub type BidUint64 = u64;
 /// // where the lower 64 bits are 0x0000000000000000
 /// // and the upper 64 bits are 0x3040000000000000.
 /// ```
+#[repr(C, align(16))]
 #[derive(Default, Copy, Clone, PartialEq, Eq)]
 pub struct BidUint128 {
   /// The underlying 64-bit words that make up the 128-bit decimal floating-point value.
-  ///
-  /// - `w[0]`: Least significant word (lower 64 bits).
-  /// - `w[1]`: Most significant word (upper 64 bits).
   pub w: [BidUint64; 2],
 }
 
@@ -47,13 +45,10 @@ impl Debug for BidUint128 {
 }
 
 /// 256-bit decimal floating-point in binary format.
+#[repr(C, align(16))]
 #[derive(Default, Copy, Clone, PartialEq, Eq)]
 pub struct BidUint192 {
   /// The underlying 64-bit words that make up the 192-bit decimal floating-point value.
-  ///
-  /// - `w[0]`: Least significant word (lower 64 bits).
-  /// - `w[1]`: Middle word (middle 64 bits).
-  /// - `w[2]`: Most significant word (upper 64 bits).
   pub w: [BidUint64; 3],
 }
 
@@ -64,19 +59,43 @@ impl Debug for BidUint192 {
 }
 
 /// 256-bit decimal floating-point in binary format.
+#[repr(C, align(16))]
 #[derive(Default, Copy, Clone, PartialEq, Eq)]
 pub struct BidUint256 {
   /// The underlying 64-bit words that make up the 256-bit decimal floating-point value.
-  ///
-  /// - `w[0]`: Least significant word (lower 64 bits).
-  /// - `w[1]`: Least significant middle word (lower middle 64 bits).
-  /// - `w[2]`: Most significant middle word (upper middle 64 bits).
-  /// - `w[3]`: Most significant word (upper 64 bits).
   pub w: [BidUint64; 4],
 }
 
 impl Debug for BidUint256 {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     write!(f, "[{:016X} {:016X} {:016X} {:016X}]", self.w[3], self.w[2], self.w[1], self.w[0])
+  }
+}
+
+/// 384-bit decimal floating-point in binary format.
+#[repr(C, align(16))]
+#[derive(Default, Copy, Clone, PartialEq, Eq)]
+pub struct BidUint384 {
+  /// The underlying 64-bit words that make up the 384-bit decimal floating-point value.
+  pub w: [BidUint64; 6],
+}
+
+impl Debug for BidUint384 {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "[{:016X} {:016X} {:016X} {:016X} {:016X} {:016X}]", self.w[5], self.w[4], self.w[3], self.w[2], self.w[1], self.w[0])
+  }
+}
+
+/// 512-bit decimal floating-point in binary format.
+#[repr(C, align(16))]
+#[derive(Default, Copy, Clone, PartialEq, Eq)]
+pub struct BidUint512 {
+  /// The underlying 64-bit words that make up the 512-bit decimal floating-point value.
+  pub w: [BidUint64; 8],
+}
+
+impl Debug for BidUint512 {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "[{:016X} {:016X} {:016X} {:016X} {:016X} {:016X} {:016X} {:016X}]", self.w[7], self.w[6], self.w[5], self.w[4], self.w[3], self.w[2], self.w[1], self.w[0])
   }
 }

@@ -12,6 +12,8 @@ mod bid128_2_str_macros;
 mod bid128_2_str_tables;
 mod bid128_add;
 mod bid128_common;
+mod bid128_fma;
+mod bid128_mul;
 mod bid128_noncomp;
 mod bid128_string;
 mod bid_conf;
@@ -19,6 +21,7 @@ mod bid_decimal_data;
 mod bid_from_int;
 mod bid_functions;
 mod bid_internal;
+mod bid_round;
 mod bid_types;
 
 pub use bid_conf::{IdecFlags, IdecRound};
@@ -29,5 +32,7 @@ pub use bid_functions::{
 };
 pub use bid_types::{BidUint32, BidUint64, BidUint128, BidUint192, BidUint256};
 pub use bid128_add::{bid128_add, bid128_sub};
+pub use bid128_fma::bid128_fma;
+pub use bid128_mul::bid128_mul;
 pub use bid128_noncomp::bid128_is_zero;
 pub use bid128_string::{bid128_from_string, bid128_to_string};

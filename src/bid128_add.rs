@@ -6,18 +6,6 @@ use crate::bid_internal::*;
 use crate::bid128_common::*;
 use crate::{BidUint64, BidUint128, BidUint256};
 
-#[repr(C)]
-union U64Double {
-  pub u: u64,
-  pub f: f64,
-}
-
-macro_rules! bits {
-  ($value:expr) => {
-    ((((unsafe { U64Double { f: $value as f64 }.u } >> 52) as u32) & 0x7ff) - 0x3ff) as usize
-  };
-}
-
 /// Adds two 128-bit decimal floating-point values.
 pub fn bid128_add(mut x: BidUint128, mut y: BidUint128, _rnd_mode: IdecRound, _pfpsf: &mut IdecFlags) -> BidUint128 {
   let mut res = BidUint128 { w: [0xbaddbaddbaddbadd, 0xbaddbaddbaddbadd] };
@@ -26,8 +14,8 @@ pub fn bid128_add(mut x: BidUint128, mut y: BidUint128, _rnd_mode: IdecRound, _p
   let mut tmp_sign: BidUint64;
   let mut c1 = BidUint128::default();
   let mut c2 = BidUint128::default();
-  let x_nr_bits: usize;
-  let y_nr_bits: usize;
+  let x_nr_bits: i32;
+  let y_nr_bits: i32;
   let mut q1: i32;
   let mut q2: i32;
   let mut scale: i32;
@@ -235,10 +223,10 @@ pub fn bid128_add(mut x: BidUint128, mut y: BidUint128, _rnd_mode: IdecRound, _p
           // c2_hi != 0 => nr. bits = 64 + nr_bits (c2_hi)
           y_nr_bits = 64 + bits!(c2_hi)
         }
-        q2 = BID_NR_DIGITS[y_nr_bits].digits as i32;
+        q2 = bid_nr_digits!(y_nr_bits).digits as i32;
         if q2 == 0 {
-          q2 = BID_NR_DIGITS[y_nr_bits].digits1 as i32;
-          if c2_hi > BID_NR_DIGITS[y_nr_bits].threshold_hi || (c2_hi == BID_NR_DIGITS[y_nr_bits].threshold_hi && c2_lo >= BID_NR_DIGITS[y_nr_bits].threshold_lo) {
+          q2 = bid_nr_digits!(y_nr_bits).digits1 as i32;
+          if c2_hi > bid_nr_digits!(y_nr_bits).threshold_hi || (c2_hi == bid_nr_digits!(y_nr_bits).threshold_hi && c2_lo >= bid_nr_digits!(y_nr_bits).threshold_lo) {
             q2 += 1;
           }
         }
@@ -303,10 +291,10 @@ pub fn bid128_add(mut x: BidUint128, mut y: BidUint128, _rnd_mode: IdecRound, _p
         // c1_hi != 0 => nr. bits = 64 + nr_bits (c1_hi)
         x_nr_bits = 64 + bits!(c1_hi);
       }
-      q1 = BID_NR_DIGITS[x_nr_bits].digits as i32;
+      q1 = bid_nr_digits!(x_nr_bits).digits as i32;
       if q1 == 0 {
-        q1 = BID_NR_DIGITS[x_nr_bits].digits1 as i32;
-        if c1_hi > BID_NR_DIGITS[x_nr_bits].threshold_hi || (c1_hi == BID_NR_DIGITS[x_nr_bits].threshold_hi && c1_lo >= BID_NR_DIGITS[x_nr_bits].threshold_lo) {
+        q1 = bid_nr_digits!(x_nr_bits).digits1 as i32;
+        if c1_hi > bid_nr_digits!(x_nr_bits).threshold_hi || (c1_hi == bid_nr_digits!(x_nr_bits).threshold_hi && c1_lo >= bid_nr_digits!(x_nr_bits).threshold_lo) {
           q1 = q1.wrapping_add(1);
         }
       }
@@ -379,10 +367,10 @@ pub fn bid128_add(mut x: BidUint128, mut y: BidUint128, _rnd_mode: IdecRound, _p
       x_nr_bits = 64 + bits!(c1_hi);
     }
 
-    q1 = BID_NR_DIGITS[x_nr_bits].digits as i32;
+    q1 = bid_nr_digits!(x_nr_bits).digits as i32;
     if q1 == 0 {
-      q1 = BID_NR_DIGITS[x_nr_bits].digits1 as i32;
-      if c1_hi > BID_NR_DIGITS[x_nr_bits].threshold_hi || (c1_hi == BID_NR_DIGITS[x_nr_bits].threshold_hi && c1_lo >= BID_NR_DIGITS[x_nr_bits].threshold_lo) {
+      q1 = bid_nr_digits!(x_nr_bits).digits1 as i32;
+      if c1_hi > bid_nr_digits!(x_nr_bits).threshold_hi || (c1_hi == bid_nr_digits!(x_nr_bits).threshold_hi && c1_lo >= bid_nr_digits!(x_nr_bits).threshold_lo) {
         q1 = q1.wrapping_add(1);
       }
     }
@@ -403,10 +391,10 @@ pub fn bid128_add(mut x: BidUint128, mut y: BidUint128, _rnd_mode: IdecRound, _p
       y_nr_bits = 64 + bits!(c2_hi);
     }
 
-    q2 = BID_NR_DIGITS[y_nr_bits].digits as i32;
+    q2 = bid_nr_digits!(y_nr_bits).digits as i32;
     if q2 == 0 {
-      q2 = BID_NR_DIGITS[y_nr_bits].digits1 as i32;
-      if c2_hi > BID_NR_DIGITS[y_nr_bits].threshold_hi || (c2_hi == BID_NR_DIGITS[y_nr_bits].threshold_hi && c2_lo >= BID_NR_DIGITS[y_nr_bits].threshold_lo) {
+      q2 = bid_nr_digits!(y_nr_bits).digits1 as i32;
+      if c2_hi > bid_nr_digits!(y_nr_bits).threshold_hi || (c2_hi == bid_nr_digits!(y_nr_bits).threshold_hi && c2_lo >= bid_nr_digits!(y_nr_bits).threshold_lo) {
         q2 = q2.wrapping_add(1);
       }
     }
