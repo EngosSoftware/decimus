@@ -45,11 +45,11 @@ pub fn bid_round64_2_18(
   // kx ~= 10^(-x), kx = bid_Kx64[ind] * 2^(-Ex), 0 <= ind <= 16
   // P128 = (c + 1/2 * 10^x) * kx * 2^Ex = (c + 1/2 * 10^x) * Kx
   // the approximation kx of 10^(-x) was rounded up to 64 bits
-  mul_64x64_to_128mach!(p128, c, bid_Kx64![ind]);
+  mul_64x64_to_128mach!(p128, c, bid_kx64![ind]);
   // calculate c* = floor (P128) and f*
   // Cstar = P128 >> Ex
   // fstar = low Ex bits of P128
-  let shift = bid_Ex64m64![ind] as i32; // in [3, 56]
+  let shift = bid_ex64m64![ind] as i32; // in [3, 56]
   c_star = p128.w[1] >> shift;
   f_star.w[1] = p128.w[1] & bid_mask64![ind];
   f_star.w[0] = p128.w[0];
@@ -384,14 +384,14 @@ pub fn bid_round192_39_57(
     }
     c.w[2] = c.w[2].wrapping_add(bid_midpoint192!(ind - 38).w[2]);
   }
-  // kx ~= 10^(-x), kx = bid_Kx192[ind] * 2^(-Ex), 0 <= ind <= 55
+  // kx ~= 10^(-x), kx = bid_kx192[ind] * 2^(-Ex), 0 <= ind <= 55
   // p384 = (c + 1/2 * 10^x) * kx * 2^Ex = (c + 1/2 * 10^x) * Kx
   // the approximation kx of 10^(-x) was rounded up to 192 bits
-  mul_192x192_to_384!(p384, c, bid_Kx192!(ind));
+  mul_192x192_to_384!(p384, c, bid_kx192!(ind));
   // calculate c* = floor (p384) and f*
   // Cstar = p384 >> Ex
   // fstar = low Ex bits of p384
-  let shift = bid_Ex192m192!(ind) as i32; // in [1, 63] but have to consider three cases
+  let shift = bid_ex192m192!(ind) as i32; // in [1, 63] but have to consider three cases
   if ind <= 18 {
     // if 0 <= ind <= 18
     c_star.w[2] = p384.w[5] >> shift;
@@ -717,14 +717,14 @@ pub fn bid_round256_58_76(
     }
     c.w[3] = c.w[3].wrapping_add(bid_midpoint256!(ind - 58).w[3]);
   }
-  // kx ~= 10^(-x), kx = bid_Kx256[ind] * 2^(-Ex), 0 <= ind <= 74
+  // kx ~= 10^(-x), kx = bid_kx256[ind] * 2^(-Ex), 0 <= ind <= 74
   // P512 = (c + 1/2 * 10^x) * kx * 2^Ex = (c + 1/2 * 10^x) * Kx
   // the approximation kx of 10^(-x) was rounded up to 192 bits
-  mul_256x256_to_512!(p512, c, bid_Kx256!(ind));
+  mul_256x256_to_512!(p512, c, bid_kx256!(ind));
   // calculate c* = floor (P512) and f*
   // Cstar = P512 >> Ex
   // fstar = low Ex bits of P512
-  let shift = bid_Ex256m256!(ind) as i32; // in [0, 63] but have to consider four cases
+  let shift = bid_ex256m256!(ind) as i32; // in [0, 63] but have to consider four cases
   if ind <= 18 {
     // if 0 <= ind <= 18
     c_star.w[3] = p512.w[7] >> shift;
