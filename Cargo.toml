@@ -1,6 +1,6 @@
 [package]
 name = "decimus"
-version = "0.0.3"
+version = "0.0.4"
 authors = ["Dariusz Depta <depta@engos.de>"]
 description = "Decimal Floating-Point Math Library for Rust"
 documentation = "https://docs.rs/decimus"
@@ -24,3 +24,4 @@ bid-set-status-flags = []
 ieee-round-nearest-ties-away = []
 ieee-round-nearest = []
 decimal-tiny-detection-after-rounding = []
+leave-trailing-zeros = []

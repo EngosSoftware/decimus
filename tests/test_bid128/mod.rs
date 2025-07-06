@@ -1,6 +1,7 @@
 use super::*;
 
 mod test_bid128_add;
+mod test_bid128_div;
 mod test_bid128_fma;
 mod test_bid128_from_int32;
 mod test_bid128_from_string;

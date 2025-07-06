@@ -2,26 +2,12 @@
 
 use crate::{BidUint64, BidUint128, BidUint192, BidUint256};
 
-macro_rules! generate_macros {
-  ($($name:ident => $array:ident),* $(,)?) => {
-    $(
-      macro_rules! $name {
-        ($index:expr) => {
-          $array[$index as usize]
-        };
-      }
-      pub(crate) use $name;
-    )*
+macro_rules! bid_kx64 {
+  ($index:expr) => {
+    BID_KX64[$index as usize]
   };
 }
-
-generate_macros!(
-  bid_Kx64 => BID_KX64,
-  bid_Ex64m64 => BID_EX64M64,
-  bid_mask64 => BID_MASK64,
-  bid_half64 => BID_HALF64,
-  bid_ten2mxtrunc64 => BID_TEN2MXTRUNC64
-);
+pub(crate) use bid_kx64;
 
 /// Kx from 10^(-x) ~= Kx * 2^(-Ex); Kx rounded up to 64 bits, 1 <= x <= 17
 pub const BID_KX64: [BidUint64; 17] = [
@@ -44,6 +30,13 @@ pub const BID_KX64: [BidUint64; 17] = [
   0xb877aa3236a4b44a, // 10^-17 ~= b877aa3236a4b44a * 2^-120
 ];
 
+macro_rules! bid_ex64m64 {
+  ($index:expr) => {
+    BID_EX64M64[$index as usize]
+  };
+}
+pub(crate) use bid_ex64m64;
+
 /// Ex-64 from 10^(-x) ~= Kx * 2^(-Ex); Kx rounded up to 64 bits, 1 <= x <= 17
 pub const BID_EX64M64: [u32; 17] = [
   3,  // 67 - 64, Ex = 67
@@ -64,6 +57,13 @@ pub const BID_EX64M64: [u32; 17] = [
   53, // 117 - 64, Ex = 117
   56, // 120 - 64, Ex = 120
 ];
+
+macro_rules! bid_half64 {
+  ($index:expr) => {
+    BID_HALF64[$index as usize]
+  };
+}
+pub(crate) use bid_half64;
 
 /// Values of 1/2 in the right position to be compared with the fraction from
 /// C * kx, 1 <= x <= 17; the fraction consists of the low Ex bits in C * kx
@@ -88,6 +88,13 @@ pub const BID_HALF64: [BidUint64; 17] = [
   0x0080000000000000, // half / 2^64 = 80000000000000
 ];
 
+macro_rules! bid_mask64 {
+  ($index:expr) => {
+    BID_MASK64[$index as usize]
+  };
+}
+pub(crate) use bid_mask64;
+
 /// Values of mask in the right position to obtain the high Ex - 64 bits
 /// of the fraction from C * kx, 1 <= x <= 17; the fraction consists of
 /// the low Ex bits in C * kx
@@ -110,6 +117,13 @@ pub const BID_MASK64: [BidUint64; 17] = [
   0x001fffffffffffff, // mask / 2^64
   0x00ffffffffffffff, // mask / 2^64
 ];
+
+macro_rules! bid_ten2mxtrunc64 {
+  ($index:expr) => {
+    BID_TEN2MXTRUNC64[$index as usize]
+  };
+}
+pub(crate) use bid_ten2mxtrunc64;
 
 /// Values of 10^(-x) trancated to Ex bits beyond the binary point, and
 /// in the right position to be compared with the fraction from C * kx,
@@ -536,12 +550,12 @@ pub const BID_TEN2MXTRUNC192: [BidUint192; 56] = [
   BidUint192{ w: [0xac2e4f162cfad40a, 0xeed6e2f0f0d56712, 0xfb158592be068d2 ] }  // (ten2mx >> 192) = fb158592be068d2eeed6e2f0f0d56712ac2e4f162cfad40a
 ];
 
-macro_rules! bid_Kx192 {
+macro_rules! bid_kx192 {
   ($index:expr) => {
     BID_KX192[$index as usize]
   };
 }
-pub(crate) use bid_Kx192;
+pub(crate) use bid_kx192;
 
 #[rustfmt::skip]
 pub const BID_KX192: [ BidUint192; 56] = [
@@ -603,12 +617,12 @@ pub const BID_KX192: [ BidUint192; 56] = [
   BidUint192{ w: [0xac2e4f162cfad40b, 0xeed6e2f0f0d56712, 0xfb158592be068d2e ] }  // 10^-56 ~= fb158592be068d2eeed6e2f0f0d56712ac2e4f162cfad40b * 2^-378
 ];
 
-macro_rules! bid_Ex192m192 {
+macro_rules! bid_ex192m192 {
   ($index:expr) => {
     BID_EX192M192[$index as usize]
   };
 }
-pub(crate) use bid_Ex192m192;
+pub(crate) use bid_ex192m192;
 
 #[rustfmt::skip]
 pub const BID_EX192M192: [u32; 56] = [
@@ -670,12 +684,12 @@ pub const BID_EX192M192: [u32; 56] = [
   58	// 378 - 320, Ex = 378
 ];
 
-macro_rules! bid_Kx256 {
+macro_rules! bid_kx256 {
   ($index:expr) => {
     BID_KX256[$index as usize]
   };
 }
-pub(crate) use bid_Kx256;
+pub(crate) use bid_kx256;
 
 #[rustfmt::skip]
 pub const BID_KX256: [BidUint256; 75] = [
@@ -756,12 +770,12 @@ pub const BID_KX256: [BidUint256; 75] = [
   BidUint256{ w: [0x2465fb01377a4696, 0x2f7a81a88ffbf95d, 0xb60b1d1230b20e04, 0xe7958cb87392c2c2] }   // 10^-75 ~= e7958cb87392c2c2  b60b1d1230b20e04  |  2f7a81a88ffbf95d2465fb01377a4696   * 2^-505
 ];
 
-macro_rules! bid_Ex256m256 {
+macro_rules! bid_ex256m256 {
   ($index:expr) => {
     BID_EX256M256[$index as usize]
   };
 }
-pub(crate) use bid_Ex256m256;
+pub(crate) use bid_ex256m256;
 
 #[rustfmt::skip]
 pub const BID_EX256M256: [u32; 75] = [

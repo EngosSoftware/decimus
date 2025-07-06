@@ -1,6 +1,7 @@
 #![allow(unused_macros)]
 
 use crate::bid_decimal_data::*;
+use crate::bid_functions::*;
 use crate::{BidUint64, BidUint128, BidUint256, IdecFlags, IdecRound};
 
 //pub const EXP_MIN: u64 = 0x0000000000000000;
@@ -17,6 +18,8 @@ pub const EXPMIN: i32 = -6176;
 
 pub const SIGNMASK32: u32 = 0x80000000;
 
+pub const QUIET_MASK64: u64 = 0xfdffffffffffffff;
+
 //pub const P7: i32 = 7;
 //pub const P16: i32 = 16;
 pub const P34: i32 = 34;
@@ -24,11 +27,33 @@ pub const P34: i32 = 34;
 pub const DECIMAL_EXPONENT_BIAS_128: i32 = 6176;
 pub const DECIMAL_MAX_EXPON_128: i32 = 12287;
 pub const MAX_FORMAT_DIGITS_128: i32 = 34;
-#[allow(dead_code)]
-pub const LARGEST_BID128_HIGH: u64 = 0x5fffed09bead87c0;
-#[allow(dead_code)]
-pub const LARGEST_BID128_LOW: u64 = 0x378d8e63ffffffff;
+pub const _LARGEST_BID128_HIGH: u64 = 0x5fffed09bead87c0;
+pub const _LARGEST_BID128_LOW: u64 = 0x378d8e63ffffffff;
 pub const INFINITY_MASK64: u64 = 0x7800000000000000;
+
+//======================================
+// Utility macros
+//======================================
+
+macro_rules! inc {
+  ($x:expr, $y:expr) => {
+    $x = ($x).wrapping_add($y)
+  };
+  ($x:expr) => {
+    $x = ($x).wrapping_add(1)
+  };
+}
+pub(crate) use inc;
+
+macro_rules! dec {
+  ($x:expr, $y:expr) => {
+    $x = ($x).wrapping_sub($y)
+  };
+  ($x:expr) => {
+    $x = ($x).wrapping_sub(1)
+  };
+}
+pub(crate) use dec;
 
 //======================================
 // Status flag handling
@@ -667,6 +692,21 @@ macro_rules! add_128_128 {
     $r128.w[0] = q128.w[0];
   };
 }
+pub(crate) use add_128_128;
+
+macro_rules! sub_128_128 {
+  ($r128:expr, $a128:expr, $b128:expr) => {
+    let mut q128: BidUint128 = Default::default();
+    q128.w[1] = $a128.w[1].wrapping_sub($b128.w[1]);
+    q128.w[0] = $a128.w[0].wrapping_sub($b128.w[0]);
+    if $a128.w[0] < $b128.w[0] {
+      q128.w[1] = q128.w[1].wrapping_sub(1);
+    }
+    $r128.w[1] = q128.w[1];
+    $r128.w[0] = q128.w[0];
+  };
+}
+pub(crate) use sub_128_128;
 
 macro_rules! add_carry_out {
   ($r:expr, $co:expr, $x:expr, $y: expr) => {
@@ -674,7 +714,6 @@ macro_rules! add_carry_out {
     $co = if $r < $x { 1 } else { 0 };
   };
 }
-
 pub(crate) use add_carry_out;
 
 macro_rules! add_carry_in_out {
@@ -684,8 +723,33 @@ macro_rules! add_carry_in_out {
     $co = if ($r < x1) || (x1 < $ci) { 1 } else { 0 }
   };
 }
-
 pub(crate) use add_carry_in_out;
+
+macro_rules! mul_64x64_to_64 {
+  ($p64:expr, $cx:expr, $cy:expr) => {
+    $p64 = $cx.wrapping_mul($cy);
+  };
+}
+pub(crate) use mul_64x64_to_64;
+
+macro_rules! sub_borrow_out {
+  ($s:expr, $cy:expr, $x:expr, $y:expr) => {
+    let x1: BidUint64 = $x;
+    $s = $x.wrapping_sub($y);
+    $cy = if $s > x1 { 1 } else { 0 };
+  };
+}
+pub(crate) use sub_borrow_out;
+
+macro_rules! sub_borrow_in_out {
+  ($s:expr, $cy:expr, $x:expr, $y:expr, $ci:expr) => {
+    let x0: BidUint64 = $x;
+    let x1: BidUint64 = $x.wrapping_sub($ci);
+    $s = x1.wrapping_sub($y);
+    $cy = if ($s > x1) || (x1 > x0) { 1 } else { 0 };
+  };
+}
+pub(crate) use sub_borrow_in_out;
 
 /// Returns 64 x 64 bit product.
 macro_rules! mul_64x64_to_128mach {
@@ -739,6 +803,16 @@ macro_rules! mul_64x128_to_128 {
 }
 pub(crate) use mul_64x128_to_128;
 
+macro_rules! mul_64x128_short {
+  ($ql:expr, $a:expr, $b:expr) => {
+    let albh_l: BidUint64;
+    mul_64x64_to_64!(albh_l, $a, $b.w[1]);
+    mul_64x64_to_128!($ql, $a, $b.w[0]);
+    $ql.w[1] = $ql.w[1].wrapping_add(albh_l);
+  };
+}
+pub(crate) use mul_64x128_short;
+
 macro_rules! mul_128x64_to_128 {
   ($q128:expr, $a64:expr, $b128:expr) => {
     let albh_l: BidUint64 = $a64.wrapping_mul($b128.w[1]);
@@ -782,6 +856,21 @@ macro_rules! mul_64x128_full {
   };
 }
 pub(crate) use mul_64x128_full;
+
+macro_rules! mul_64x128_to_192 {
+  ($q:expr, $a:expr, $b:expr) => {
+    let mut albl: BidUint128 = Default::default();
+    let mut albh: BidUint128 = Default::default();
+    let mut qm2: BidUint128 = Default::default();
+    mul_64x64_to_128!(albh, $a, $b.w[1]);
+    mul_64x64_to_128!(albl, $a, $b.w[0]);
+    $q.w[0] = albl.w[0];
+    add_128_64!(qm2, albh, albl.w[1]);
+    $q.w[1] = qm2.w[0];
+    $q.w[2] = qm2.w[1];
+  };
+}
+pub(crate) use mul_64x128_to_192;
 
 macro_rules! mul_64x192_to_256 {
   ($lP:expr, $lA:expr, $lB:expr) => {
@@ -837,6 +926,38 @@ macro_rules! mul_128x128_full {
     $ql.w[1] = qm2.w[0];
   };
 }
+
+macro_rules! mul_128x128_low {
+  ($ql:expr, $a:expr, $b:expr) => {
+    let mut albl: BidUint128 = Default::default();
+    mul_64x64_to_128!(albl, $a.w[0], $b.w[0]);
+    let qm64: BidUint64 = $b.w[0].wrapping_mul($a.w[1]).wrapping_add($a.w[0].wrapping_mul($b.w[1]));
+    $ql.w[0] = albl.w[0];
+    $ql.w[1] = qm64.wrapping_add(albl.w[1]);
+  };
+}
+pub(crate) use mul_128x128_low;
+
+macro_rules! mul_128x128_full {
+  ($qh:expr, $ql:expr, $a:expr, $b:expr) => {
+    let mut albl: BidUint128 = Default::default();
+    let mut albh: BidUint128 = Default::default();
+    let mut ahbl: BidUint128 = Default::default();
+    let mut ahbh: BidUint128 = Default::default();
+    let mut qm: BidUint128 = Default::default();
+    let mut qm2: BidUint128 = Default::default();
+    mul_64x64_to_128!(albh, ($a).w[0], ($b).w[1]);
+    mul_64x64_to_128!(ahbl, ($b).w[0], ($a).w[1]);
+    mul_64x64_to_128!(albl, ($a).w[0], ($b).w[0]);
+    mul_64x64_to_128!(ahbh, ($a).w[1], ($b).w[1]);
+    add_128_128!(qm, albh, ahbl);
+    $ql.w[0] = albl.w[0];
+    add_128_64!(qm2, qm, albl.w[1]);
+    add_128_64!($qh, ahbh, qm2.w[1]);
+    $ql.w[1] = qm2.w[0];
+  };
+}
+pub(crate) use mul_128x128_full;
 
 /// Get full 64x64-bit product.
 /// Note that this macro is used for `CX < 2^61`, `CY < 2^61`.
@@ -937,6 +1058,7 @@ macro_rules! shr_128_long {
     }
   };
 }
+pub(crate) use shr_128_long;
 
 /// Greater than.
 macro_rules! unsigned_compare_gt_128 {
@@ -944,6 +1066,7 @@ macro_rules! unsigned_compare_gt_128 {
     ($a.w[1] > $b.w[1]) || (($a.w[1] == $b.w[1]) && ($a.w[0] > $b.w[0]))
   };
 }
+pub(crate) use unsigned_compare_gt_128;
 
 /// Greater or equal.
 macro_rules! unsigned_compare_ge_128 {
@@ -951,6 +1074,7 @@ macro_rules! unsigned_compare_ge_128 {
     ($a.w[1] > $b.w[1]) || (($a.w[1] == $b.w[1]) && ($a.w[0] >= $b.w[0]))
   };
 }
+pub(crate) use unsigned_compare_ge_128;
 
 macro_rules! shr_128 {
   ($q:expr, $a:expr, $k:expr) => {
@@ -959,6 +1083,7 @@ macro_rules! shr_128 {
     $q.w[1] = $a.w[1] >> $k;
   };
 }
+pub(crate) use shr_128;
 
 /// General BID128 pack function.
 #[inline(always)]
@@ -995,24 +1120,18 @@ pub fn bid_get_bid128(pres: &mut BidUint128, sgn: BidUint64, mut expon: i32, mut
         return *pres;
       }
       // Check overflow.
-      #[cfg(feature = "bid-set-status-flags")]
-      {
-        use crate::bid_functions::*;
+      if cfg!(feature = "bid-set-status-flags") {
         set_status_flags!(pfpsf, BID_OVERFLOW_EXCEPTION | BID_INEXACT_EXCEPTION);
       }
-      #[cfg(all(not(feature = "ieee-round-nearest-ties-away"), not(feature = "ieee-round-nearest")))]
-      {
-        use crate::bid_functions::*;
+      if cfg!(not(feature = "ieee-round-nearest-ties-away")) && cfg!(not(feature = "ieee-round-nearest")) {
         if rnd_mode == BID_ROUNDING_TO_ZERO || (sgn > 0 && rnd_mode == BID_ROUNDING_UP) || (sgn == 0 && rnd_mode == BID_ROUNDING_DOWN) {
-          pres.w[1] = sgn | LARGEST_BID128_HIGH;
-          pres.w[0] = LARGEST_BID128_LOW;
+          pres.w[1] = sgn | _LARGEST_BID128_HIGH;
+          pres.w[0] = _LARGEST_BID128_LOW;
         } else {
           pres.w[1] = sgn | INFINITY_MASK64;
           pres.w[0] = 0;
         }
-      }
-      #[cfg(any(feature = "ieee-round-nearest-ties-away", feature = "ieee-round-nearest"))]
-      {
+      } else {
         pres.w[1] = sgn | INFINITY_MASK64;
         pres.w[0] = 0;
       }
@@ -1026,34 +1145,164 @@ pub fn bid_get_bid128(pres: &mut BidUint128, sgn: BidUint64, mut expon: i32, mut
   *pres
 }
 
+/// Macro for handling BID128 underflow sticky bit given as additional argument.
+#[inline(always)]
+pub fn bid_handle_uf_128_rem(pres: &mut BidUint128, sgn: BidUint64, expon: i32, mut cq: BidUint128, r: BidUint64, prounding_mode: IdecRound, _fpsc: &mut IdecFlags) -> BidUint128 {
+  let mut qh: BidUint128 = Default::default();
+  let mut ql: BidUint128 = Default::default();
+  let mut qh1: BidUint128 = Default::default();
+  let mut stemp: BidUint128 = Default::default();
+  let mut tmp: BidUint128 = Default::default();
+  let mut _tmp1: BidUint128 = Default::default();
+  let mut cq2: BidUint128 = Default::default();
+  let mut cq8: BidUint128 = Default::default();
+  let mut carry: BidUint64;
+  let _cy: BidUint64;
+  let mut rmode: u32;
+  let mut _status: u32;
+
+  // UF occurs
+  if expon + MAX_FORMAT_DIGITS_128 < 0 {
+    if cfg!(feature = "bid-set-status-flags") {
+      set_status_flags!(_fpsc, BID_UNDERFLOW_EXCEPTION | BID_INEXACT_EXCEPTION);
+    }
+    pres.w[1] = sgn;
+    pres.w[0] = 0;
+    if cfg!(not(feature = "ieee-round-nearest-ties-away")) && cfg!(not(feature = "ieee-round-nearest")) {
+      // Round to 1 at least significant position
+      if (sgn > 0 && prounding_mode == BID_ROUNDING_DOWN) || (sgn == 0 && prounding_mode == BID_ROUNDING_UP) {
+        pres.w[0] = 1;
+      }
+    }
+    return *pres;
+  }
+
+  // cq *= 10
+  cq2.w[1] = (cq.w[1] << 1) | (cq.w[0] >> 63);
+  cq2.w[0] = cq.w[0] << 1;
+  cq8.w[1] = (cq.w[1] << 3) | (cq.w[0] >> 61);
+  cq8.w[0] = cq.w[0] << 3;
+  add_128_128!(cq, cq2, cq8);
+
+  // add remainder
+  if r > 0 {
+    cq.w[0] |= 1;
+  }
+
+  let ed2: i32 = 1 - expon;
+  // add rounding constant to cq
+  if cfg!(not(feature = "ieee-round-nearest-ties-away")) {
+    if cfg!(not(feature = "ieee-round-nearest")) {
+      rmode = prounding_mode;
+      if sgn > 0 && rmode.wrapping_sub(1) < 2 {
+        rmode = 3 - rmode;
+      }
+    } else {
+      rmode = 0;
+    }
+  } else {
+    rmode = 0;
+  }
+
+  let t128: BidUint128 = bid_round_const_table_128![rmode, ed2];
+  add_carry_out!(cq.w[0], carry, t128.w[0], cq.w[0]);
+  cq.w[1] = cq.w[1] + t128.w[1] + carry;
+
+  let tp128: BidUint128 = bid_reciprocals10_128![ed2];
+  mul_128x128_full!(qh, ql, cq, tp128);
+  let amount: i32 = bid_recip_scale![ed2];
+
+  if amount >= 64 {
+    cq.w[0] = qh.w[1] >> (amount - 64);
+    cq.w[1] = 0;
+  } else {
+    shr_128!(cq, qh, amount);
+  }
+
+  if cfg!(not(feature = "ieee-round-nearest-ties-away")) {
+    let feature_gate = if cfg!(feature = "ieee-round-nearest") { true } else { prounding_mode == 0 };
+    if feature_gate && (cq.w[0] & 1) > 0 {
+      // check whether fractional part of initial_P/10^ed1 is exactly .5
+      // get remainder
+      shl_128_long!(qh1, qh, (128 - amount));
+      if qh1.w[1] == 0 && qh1.w[0] == 0 && (ql.w[1] < bid_reciprocals10_128![ed2].w[1] || (ql.w[1] == bid_reciprocals10_128![ed2].w[1] && ql.w[0] < bid_reciprocals10_128![ed2].w[0])) {
+        dec!(cq.w[0]);
+      }
+    }
+  }
+
+  if cfg!(feature = "bid-set-status-flags") {
+    if is_inexact!(_fpsc) {
+      set_status_flags!(_fpsc, BID_UNDERFLOW_EXCEPTION);
+    } else {
+      _status = BID_INEXACT_EXCEPTION;
+      // get remainder
+      shl_128_long!(qh1, qh, (128 - amount));
+
+      match rmode {
+        BID_ROUNDING_TO_NEAREST | BID_ROUNDING_TIES_AWAY => {
+          // test whether fractional part is 0
+          if qh1.w[1] == 0x8000000000000000 && (qh1.w[0] == 0) && (ql.w[1] < bid_reciprocals10_128![ed2].w[1] || (ql.w[1] == bid_reciprocals10_128![ed2].w[1] && ql.w[0] < bid_reciprocals10_128![ed2].w[0])) {
+            _status = BID_EXACT_STATUS;
+          }
+        }
+        BID_ROUNDING_DOWN | BID_ROUNDING_TO_ZERO => {
+          if (qh1.w[1] == 0) && (qh1.w[0] == 0) && (ql.w[1] < bid_reciprocals10_128![ed2].w[1] || (ql.w[1] == bid_reciprocals10_128![ed2].w[1] && ql.w[0] < bid_reciprocals10_128![ed2].w[0])) {
+            _status = BID_EXACT_STATUS;
+          }
+        }
+        _ => {
+          // round up
+          add_carry_out!(stemp.w[0], _cy, ql.w[0], bid_reciprocals10_128![ed2].w[0]);
+          add_carry_in_out!(stemp.w[1], carry, ql.w[1], bid_reciprocals10_128![ed2].w[1], _cy);
+          shr_128_long!(qh, qh1, (128 - amount));
+          tmp.w[0] = 1;
+          tmp.w[1] = 0;
+          shl_128_long!(_tmp1, tmp, amount);
+          inc!(qh.w[0], carry);
+          if qh.w[0] < carry {
+            inc!(qh.w[1]);
+          }
+          if unsigned_compare_ge_128!(qh, _tmp1) {
+            _status = BID_EXACT_STATUS;
+          }
+        }
+      }
+
+      if _status != BID_EXACT_STATUS {
+        set_status_flags!(_fpsc, BID_UNDERFLOW_EXCEPTION | _status);
+      }
+    }
+  }
+  pres.w[1] = sgn | cq.w[1];
+  pres.w[0] = cq.w[0];
+  *pres
+}
+
 /// Handling BID128 underflow.
 #[inline(always)]
-pub fn handle_uf_128(pres: &mut BidUint128, sgn: BidUint64, expon: &mut i32, mut cq: BidUint128, _rnd_mode: IdecRound, _flags: &mut IdecFlags) -> BidUint128 {
-  let mut _stemp: BidUint128 = Default::default();
-  let mut _tmp: BidUint128 = Default::default();
-  let mut _tmp1: BidUint128 = Default::default();
+pub fn handle_uf_128(pres: &mut BidUint128, sgn: BidUint64, expon: &mut i32, mut cq: BidUint128, rnd_mode: IdecRound, flags: &mut IdecFlags) -> BidUint128 {
+  let mut stemp: BidUint128 = Default::default();
+  let mut tmp: BidUint128 = Default::default();
+  let mut tmp1: BidUint128 = Default::default();
   let mut qh: BidUint128 = BidUint128::default();
-  let mut _qh1: BidUint128 = BidUint128::default();
+  let mut qh1: BidUint128 = BidUint128::default();
   let mut ql: BidUint128 = Default::default();
-  #[allow(unused_mut)]
   let mut carry: BidUint64;
-  let mut _cy: BidUint64 = 0;
+  let cy: BidUint64;
   let rmode: u32;
-  let mut _status: u32;
+  let mut status: u32;
 
   // Underlow occurs.
   if *expon + MAX_FORMAT_DIGITS_128 < 0 {
     #[cfg(feature = "bid-set-status-flags")]
-    {
-      use crate::bid_functions::*;
-      set_status_flags!(_flags, BID_UNDERFLOW_EXCEPTION | BID_INEXACT_EXCEPTION);
-    }
+    set_status_flags!(flags, BID_UNDERFLOW_EXCEPTION | BID_INEXACT_EXCEPTION);
     pres.w[1] = sgn;
     pres.w[0] = 0;
     #[cfg(all(not(feature = "ieee-round-nearest-ties-away"), not(feature = "ieee-round-nearest")))]
     {
       use crate::bid_functions::{BID_ROUNDING_DOWN, BID_ROUNDING_UP};
-      if (sgn > 0 && _rnd_mode == BID_ROUNDING_DOWN) || (sgn == 0 && _rnd_mode == BID_ROUNDING_UP) {
+      if (sgn > 0 && rnd_mode == BID_ROUNDING_DOWN) || (sgn == 0 && rnd_mode == BID_ROUNDING_UP) {
         pres.w[0] = 1;
       }
     }
@@ -1066,7 +1315,7 @@ pub fn handle_uf_128(pres: &mut BidUint128, sgn: BidUint64, expon: &mut i32, mut
   {
     #[cfg(not(feature = "ieee-round-nearest"))]
     {
-      rmode = if sgn > 0 && (_rnd_mode.wrapping_sub(1)) < 2 { 3 - _rnd_mode } else { _rnd_mode }
+      rmode = if sgn > 0 && (rnd_mode.wrapping_sub(1)) < 2 { 3 - rnd_mode } else { rnd_mode }
     }
     #[cfg(feature = "ieee-round-nearest")]
     {
@@ -1095,69 +1344,58 @@ pub fn handle_uf_128(pres: &mut BidUint128, sgn: BidUint64, expon: &mut i32, mut
 
   *expon = 0;
 
-  #[cfg(not(feature = "ieee-round-nearest-ties-away"))]
-  {
-    let rounding_mode_is_zero = {
-      #[cfg(not(feature = "ieee-round-nearest"))]
-      {
-        _rnd_mode == 0
-      }
-      #[cfg(feature = "ieee-round-nearest")]
-      {
-        true
-      }
-    };
-    if rounding_mode_is_zero && cq.w[0] & 1 > 0 {
+  if !cfg!(feature = "ieee-round-nearest-ties-away") {
+    let feature_gate = { if cfg!(feature = "ieee-round-nearest") { true } else { rnd_mode == 0 } };
+    if feature_gate && cq.w[0] & 1 > 0 {
       // Check whether fractional part of initial_P / 10 ^ ed1 is exactly .5
       // Get the remainder.
-      shl_128_long!(_qh1, qh, 128 - amount);
-      if _qh1.w[1] == 0 && _qh1.w[0] == 0 && (ql.w[1] < bid_reciprocals10_128!(ed2).w[1] || (ql.w[1] == bid_reciprocals10_128!(ed2).w[1] && ql.w[0] < bid_reciprocals10_128!(ed2).w[0])) {
+      shl_128_long!(qh1, qh, 128 - amount);
+      if qh1.w[1] == 0 && qh1.w[0] == 0 && (ql.w[1] < bid_reciprocals10_128!(ed2).w[1] || (ql.w[1] == bid_reciprocals10_128!(ed2).w[1] && ql.w[0] < bid_reciprocals10_128!(ed2).w[0])) {
         cq.w[0] -= 1;
       }
     }
   }
 
-  #[cfg(feature = "bid-set-status-flags")]
-  {
+  if cfg!(feature = "bid-set-status-flags") {
     use crate::bid_functions::*;
-    if is_inexact!(_flags) {
-      set_status_flags!(_flags, BID_UNDERFLOW_EXCEPTION);
+    if is_inexact!(flags) {
+      set_status_flags!(flags, BID_UNDERFLOW_EXCEPTION);
     } else {
-      _status = BID_INEXACT_EXCEPTION;
+      status = BID_INEXACT_EXCEPTION;
       // get remainder
-      shl_128_long!(_qh1, qh, 128 - amount);
+      shl_128_long!(qh1, qh, 128 - amount);
       match rmode {
         BID_ROUNDING_TO_NEAREST | BID_ROUNDING_TIES_AWAY => {
           // test whether fractional part is 0
-          if _qh1.w[1] == 0x8000000000000000 && _qh1.w[0] == 0 && (ql.w[1] < bid_reciprocals10_128!(ed2).w[1] || (ql.w[1] == bid_reciprocals10_128!(ed2).w[1] && ql.w[0] < bid_reciprocals10_128!(ed2).w[0])) {
-            _status = BID_EXACT_STATUS;
+          if qh1.w[1] == 0x8000000000000000 && qh1.w[0] == 0 && (ql.w[1] < bid_reciprocals10_128!(ed2).w[1] || (ql.w[1] == bid_reciprocals10_128!(ed2).w[1] && ql.w[0] < bid_reciprocals10_128!(ed2).w[0])) {
+            status = BID_EXACT_STATUS;
           }
         }
         BID_ROUNDING_DOWN | BID_ROUNDING_TO_ZERO => {
-          if (_qh1.w[1] == 0) && (_qh1.w[0] == 0) && (ql.w[1] < bid_reciprocals10_128!(ed2).w[1] || (ql.w[1] == bid_reciprocals10_128!(ed2).w[1] && ql.w[0] < bid_reciprocals10_128!(ed2).w[0])) {
-            _status = BID_EXACT_STATUS;
+          if (qh1.w[1] == 0) && (qh1.w[0] == 0) && (ql.w[1] < bid_reciprocals10_128!(ed2).w[1] || (ql.w[1] == bid_reciprocals10_128!(ed2).w[1] && ql.w[0] < bid_reciprocals10_128!(ed2).w[0])) {
+            status = BID_EXACT_STATUS;
           }
         }
         _ => {
           // round up
-          add_carry_out!(_stemp.w[0], _cy, ql.w[0], bid_reciprocals10_128!(ed2).w[0]);
-          add_carry_in_out!(_stemp.w[1], carry, ql.w[1], bid_reciprocals10_128!(ed2).w[1], _cy);
-          shr_128_long!(qh, _qh1, 128 - amount);
-          _tmp.w[0] = 1;
-          _tmp.w[1] = 0;
-          shl_128_long!(_tmp1, _tmp, amount);
-          qh.w[0] += carry;
+          add_carry_out!(stemp.w[0], cy, ql.w[0], bid_reciprocals10_128!(ed2).w[0]);
+          add_carry_in_out!(stemp.w[1], carry, ql.w[1], bid_reciprocals10_128!(ed2).w[1], cy);
+          shr_128_long!(qh, qh1, 128 - amount);
+          tmp.w[0] = 1;
+          tmp.w[1] = 0;
+          shl_128_long!(tmp1, tmp, amount);
+          inc!(qh.w[0], carry);
           if qh.w[0] < carry {
-            qh.w[1] += 1;
+            inc!(qh.w[1], 1);
           }
-          if unsigned_compare_ge_128!(qh, _tmp1) {
-            _status = BID_EXACT_STATUS;
+          if unsigned_compare_ge_128!(qh, tmp1) {
+            status = BID_EXACT_STATUS;
           }
         }
       }
 
-      if _status != BID_EXACT_STATUS {
-        set_status_flags!(_flags, BID_UNDERFLOW_EXCEPTION | _status);
+      if status != BID_EXACT_STATUS {
+        set_status_flags!(flags, BID_UNDERFLOW_EXCEPTION | status);
       }
     }
   }
@@ -1168,10 +1406,114 @@ pub fn handle_uf_128(pres: &mut BidUint128, sgn: BidUint64, expon: &mut i32, mut
   *pres
 }
 
+/*********************************************************************
+ *
+ *      BID Pack/Unpack Macros
+ *
+ *********************************************************************/
+
+const SPECIAL_ENCODING_MASK64: u64 = 0x6000000000000000;
+const SINFINITY_MASK64: u64 = 0xf800000000000000;
+const EXPONENT_MASK128: i32 = 0x3fff;
+const NAN_MASK64: u64 = 0x7c00000000000000;
+const SMALL_COEFF_MASK128: u64 = 0x0001ffffffffffff;
+
+/// BID128 unpack, input passed by value.
+#[inline(always)]
+pub fn unpack_bid128_value(psign_x: &mut BidUint64, pexponent_x: &mut i32, pcoefficient_x: &mut BidUint128, x: BidUint128) -> BidUint64 {
+  let mut coeff: BidUint128 = Default::default();
+  let t33: BidUint128;
+  let ex: BidUint64;
+
+  *psign_x = (x.w[1]) & 0x8000000000000000;
+
+  // special encodings
+  if (x.w[1] & INFINITY_MASK64) >= SPECIAL_ENCODING_MASK64 {
+    if (x.w[1] & INFINITY_MASK64) < INFINITY_MASK64 {
+      // non-canonical input
+      pcoefficient_x.w[0] = 0;
+      pcoefficient_x.w[1] = 0;
+      ex = (x.w[1]) >> 47;
+      *pexponent_x = (ex as i32) & EXPONENT_MASK128;
+      return 0;
+    }
+    // 10^33
+    t33 = bid_power10_table_128![33];
+    /*
+    coeff.w[0] = x.w[0];
+    coeff.w[1] = (x.w[1]) & LARGE_COEFF_MASK128;
+    pcoefficient_x->w[0] = x.w[0];
+    pcoefficient_x->w[1] = x.w[1];
+    if (__unsigned_compare_ge_128 (coeff, t33)) // non-canonical
+    pcoefficient_x->w[1] &= (~LARGE_COEFF_MASK128);
+    */
+
+    pcoefficient_x.w[0] = x.w[0];
+    pcoefficient_x.w[1] = (x.w[1]) & 0x00003fffffffffff;
+    if unsigned_compare_ge_128!(*pcoefficient_x, t33)
+    // non-canonical
+    {
+      pcoefficient_x.w[1] = (x.w[1]) & 0xfe00000000000000;
+      pcoefficient_x.w[0] = 0;
+    } else {
+      pcoefficient_x.w[1] = (x.w[1]) & 0xfe003fffffffffff;
+    }
+    if (x.w[1] & NAN_MASK64) == INFINITY_MASK64 {
+      pcoefficient_x.w[0] = 0;
+      pcoefficient_x.w[1] = x.w[1] & SINFINITY_MASK64;
+    }
+    *pexponent_x = 0;
+    return 0; // NaN or Infinity
+  }
+
+  coeff.w[0] = x.w[0];
+  coeff.w[1] = (x.w[1]) & SMALL_COEFF_MASK128;
+
+  // 10^34
+  let t34: BidUint128 = bid_power10_table_128![34];
+  // check for non-canonical values
+  if unsigned_compare_ge_128!(coeff, t34) {
+    coeff.w[0] = 0;
+    coeff.w[1] = 0;
+  }
+
+  pcoefficient_x.w[0] = coeff.w[0];
+  pcoefficient_x.w[1] = coeff.w[1];
+
+  ex = (x.w[1]) >> 49;
+  *pexponent_x = (ex as i32) & EXPONENT_MASK128;
+
+  coeff.w[0] | coeff.w[1]
+}
+
 #[repr(C)]
 pub union U64Double {
   pub u: u64,
   pub f: f64,
+}
+
+#[repr(C)]
+pub union IntDouble {
+  pub i: u64,
+  pub d: f64,
+}
+
+impl Default for IntDouble {
+  fn default() -> Self {
+    Self { i: 0 }
+  }
+}
+
+#[repr(C)]
+pub union IntFloat {
+  pub i: u32,
+  pub d: f32,
+}
+
+impl Default for IntFloat {
+  fn default() -> Self {
+    Self { i: 0 }
+  }
 }
 
 macro_rules! bits {
@@ -1180,23 +1522,3 @@ macro_rules! bits {
   };
 }
 pub(crate) use bits;
-
-macro_rules! inc {
-  ($x:expr, $y:expr) => {
-    $x = ($x).wrapping_add($y)
-  };
-  ($x:expr) => {
-    $x = ($x).wrapping_add(1)
-  };
-}
-pub(crate) use inc;
-
-macro_rules! dec {
-  ($x:expr, $y:expr) => {
-    $x = ($x).wrapping_sub($y)
-  };
-  ($x:expr) => {
-    $x = ($x).wrapping_sub(1)
-  };
-}
-pub(crate) use dec;
