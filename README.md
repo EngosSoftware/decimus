@@ -30,7 +30,7 @@
 [build-badge-windows]: https://github.com/EngosSoftware/decimus/actions/workflows/build-windows.yml/badge.svg
 [build-badge-macos]: https://github.com/EngosSoftware/decimus/actions/workflows/build-macos.yml/badge.svg
 [build-badge-macos-arm64]: https://github.com/EngosSoftware/decimus/actions/workflows/build-macos-arm64.yml/badge.svg
-[coverage-badge]: https://img.shields.io/badge/Code%20coverage-0%25-green.svg
+[coverage-badge]: https://img.shields.io/badge/Code%20coverage-68%25-green.svg
 [cc-badge]: https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg
 [cc-url]: https://github.com/EngosSoftware/decimus/blob/main/CODE_OF_CONDUCT.md
 [mbh-badge]: https://img.shields.io/badge/Made_by-HUMAN-d35400.svg

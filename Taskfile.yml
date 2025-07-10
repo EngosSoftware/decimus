@@ -14,7 +14,8 @@ tasks:
       - task: linux
       - task: musl
       - task: wasm
-      - task: wasi
+      - task: wasip1
+      - task: wasip2
 
   build-all:
     desc: Builds in debug mode with all configurations
@@ -159,10 +160,15 @@ tasks:
     cmds:
       - cmd: cargo +stable build --release --target=wasm32-unknown-unknown
 
-  wasi:
-    desc: Builds the WASI binary
+  wasip1:
+    desc: Builds the WASI P1 binary
     cmds:
       - cmd: cargo +stable build --release --target=wasm32-wasip1
+
+  wasip2:
+    desc: Builds the WASI P2 binary
+    cmds:
+      - cmd: cargo +stable build --release --target=wasm32-wasip2
 
   hack-all:
     cmds:

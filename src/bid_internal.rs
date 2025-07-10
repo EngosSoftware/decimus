@@ -1147,30 +1147,30 @@ pub fn bid_get_bid128(pres: &mut BidUint128, sgn: BidUint64, mut expon: i32, mut
 
 /// Macro for handling BID128 underflow sticky bit given as additional argument.
 #[inline(always)]
-pub fn bid_handle_uf_128_rem(pres: &mut BidUint128, sgn: BidUint64, expon: i32, mut cq: BidUint128, r: BidUint64, prounding_mode: IdecRound, _fpsc: &mut IdecFlags) -> BidUint128 {
+pub fn bid_handle_uf_128_rem(pres: &mut BidUint128, sgn: BidUint64, expon: i32, mut cq: BidUint128, r: BidUint64, rounding: IdecRound, flags: &mut IdecFlags) -> BidUint128 {
   let mut qh: BidUint128 = Default::default();
   let mut ql: BidUint128 = Default::default();
   let mut qh1: BidUint128 = Default::default();
   let mut stemp: BidUint128 = Default::default();
   let mut tmp: BidUint128 = Default::default();
-  let mut _tmp1: BidUint128 = Default::default();
+  let mut tmp1: BidUint128 = Default::default();
   let mut cq2: BidUint128 = Default::default();
   let mut cq8: BidUint128 = Default::default();
   let mut carry: BidUint64;
-  let _cy: BidUint64;
+  let cy: BidUint64;
   let mut rmode: u32;
-  let mut _status: u32;
+  let mut status: u32;
 
   // UF occurs
   if expon + MAX_FORMAT_DIGITS_128 < 0 {
     if cfg!(feature = "bid-set-status-flags") {
-      set_status_flags!(_fpsc, BID_UNDERFLOW_EXCEPTION | BID_INEXACT_EXCEPTION);
+      set_status_flags!(flags, BID_UNDERFLOW_EXCEPTION | BID_INEXACT_EXCEPTION);
     }
     pres.w[1] = sgn;
     pres.w[0] = 0;
     if cfg!(not(feature = "ieee-round-nearest-ties-away")) && cfg!(not(feature = "ieee-round-nearest")) {
       // Round to 1 at least significant position
-      if (sgn > 0 && prounding_mode == BID_ROUNDING_DOWN) || (sgn == 0 && prounding_mode == BID_ROUNDING_UP) {
+      if (sgn > 0 && rounding == BID_ROUNDING_DOWN) || (sgn == 0 && rounding == BID_ROUNDING_UP) {
         pres.w[0] = 1;
       }
     }
@@ -1193,7 +1193,7 @@ pub fn bid_handle_uf_128_rem(pres: &mut BidUint128, sgn: BidUint64, expon: i32, 
   // add rounding constant to cq
   if cfg!(not(feature = "ieee-round-nearest-ties-away")) {
     if cfg!(not(feature = "ieee-round-nearest")) {
-      rmode = prounding_mode;
+      rmode = rounding;
       if sgn > 0 && rmode.wrapping_sub(1) < 2 {
         rmode = 3 - rmode;
       }
@@ -1220,7 +1220,7 @@ pub fn bid_handle_uf_128_rem(pres: &mut BidUint128, sgn: BidUint64, expon: i32, 
   }
 
   if cfg!(not(feature = "ieee-round-nearest-ties-away")) {
-    let feature_gate = if cfg!(feature = "ieee-round-nearest") { true } else { prounding_mode == 0 };
+    let feature_gate = if cfg!(feature = "ieee-round-nearest") { true } else { rounding == 0 };
     if feature_gate && (cq.w[0] & 1) > 0 {
       // check whether fractional part of initial_P/10^ed1 is exactly .5
       // get remainder
@@ -1232,10 +1232,10 @@ pub fn bid_handle_uf_128_rem(pres: &mut BidUint128, sgn: BidUint64, expon: i32, 
   }
 
   if cfg!(feature = "bid-set-status-flags") {
-    if is_inexact!(_fpsc) {
-      set_status_flags!(_fpsc, BID_UNDERFLOW_EXCEPTION);
+    if is_inexact!(flags) {
+      set_status_flags!(flags, BID_UNDERFLOW_EXCEPTION);
     } else {
-      _status = BID_INEXACT_EXCEPTION;
+      status = BID_INEXACT_EXCEPTION;
       // get remainder
       shl_128_long!(qh1, qh, (128 - amount));
 
@@ -1243,34 +1243,34 @@ pub fn bid_handle_uf_128_rem(pres: &mut BidUint128, sgn: BidUint64, expon: i32, 
         BID_ROUNDING_TO_NEAREST | BID_ROUNDING_TIES_AWAY => {
           // test whether fractional part is 0
           if qh1.w[1] == 0x8000000000000000 && (qh1.w[0] == 0) && (ql.w[1] < bid_reciprocals10_128![ed2].w[1] || (ql.w[1] == bid_reciprocals10_128![ed2].w[1] && ql.w[0] < bid_reciprocals10_128![ed2].w[0])) {
-            _status = BID_EXACT_STATUS;
+            status = BID_EXACT_STATUS;
           }
         }
         BID_ROUNDING_DOWN | BID_ROUNDING_TO_ZERO => {
           if (qh1.w[1] == 0) && (qh1.w[0] == 0) && (ql.w[1] < bid_reciprocals10_128![ed2].w[1] || (ql.w[1] == bid_reciprocals10_128![ed2].w[1] && ql.w[0] < bid_reciprocals10_128![ed2].w[0])) {
-            _status = BID_EXACT_STATUS;
+            status = BID_EXACT_STATUS;
           }
         }
         _ => {
           // round up
-          add_carry_out!(stemp.w[0], _cy, ql.w[0], bid_reciprocals10_128![ed2].w[0]);
-          add_carry_in_out!(stemp.w[1], carry, ql.w[1], bid_reciprocals10_128![ed2].w[1], _cy);
+          add_carry_out!(stemp.w[0], cy, ql.w[0], bid_reciprocals10_128![ed2].w[0]);
+          add_carry_in_out!(stemp.w[1], carry, ql.w[1], bid_reciprocals10_128![ed2].w[1], cy);
           shr_128_long!(qh, qh1, (128 - amount));
           tmp.w[0] = 1;
           tmp.w[1] = 0;
-          shl_128_long!(_tmp1, tmp, amount);
+          shl_128_long!(tmp1, tmp, amount);
           inc!(qh.w[0], carry);
           if qh.w[0] < carry {
             inc!(qh.w[1]);
           }
-          if unsigned_compare_ge_128!(qh, _tmp1) {
-            _status = BID_EXACT_STATUS;
+          if unsigned_compare_ge_128!(qh, tmp1) {
+            status = BID_EXACT_STATUS;
           }
         }
       }
 
-      if _status != BID_EXACT_STATUS {
-        set_status_flags!(_fpsc, BID_UNDERFLOW_EXCEPTION | _status);
+      if status != BID_EXACT_STATUS {
+        set_status_flags!(flags, BID_UNDERFLOW_EXCEPTION | status);
       }
     }
   }
@@ -1295,12 +1295,12 @@ pub fn handle_uf_128(pres: &mut BidUint128, sgn: BidUint64, expon: &mut i32, mut
 
   // Underlow occurs.
   if *expon + MAX_FORMAT_DIGITS_128 < 0 {
-    #[cfg(feature = "bid-set-status-flags")]
-    set_status_flags!(flags, BID_UNDERFLOW_EXCEPTION | BID_INEXACT_EXCEPTION);
+    if cfg!(feature = "bid-set-status-flags") {
+      set_status_flags!(flags, BID_UNDERFLOW_EXCEPTION | BID_INEXACT_EXCEPTION);
+    }
     pres.w[1] = sgn;
     pres.w[0] = 0;
-    #[cfg(all(not(feature = "ieee-round-nearest-ties-away"), not(feature = "ieee-round-nearest")))]
-    {
+    if !cfg!(feature = "ieee-round-nearest-ties-away") && !cfg!(feature = "ieee-round-nearest") {
       use crate::bid_functions::{BID_ROUNDING_DOWN, BID_ROUNDING_UP};
       if (sgn > 0 && rnd_mode == BID_ROUNDING_DOWN) || (sgn == 0 && rnd_mode == BID_ROUNDING_UP) {
         pres.w[0] = 1;
@@ -1311,19 +1311,13 @@ pub fn handle_uf_128(pres: &mut BidUint128, sgn: BidUint64, expon: &mut i32, mut
 
   let ed2 = 0 - *expon;
   // Add rounding constant to 'cq'.
-  #[cfg(not(feature = "ieee-round-nearest-ties-away"))]
-  {
-    #[cfg(not(feature = "ieee-round-nearest"))]
-    {
+  if !cfg!(feature = "ieee-round-nearest-ties-away") {
+    if !cfg!(feature = "ieee-round-nearest") {
       rmode = if sgn > 0 && (rnd_mode.wrapping_sub(1)) < 2 { 3 - rnd_mode } else { rnd_mode }
-    }
-    #[cfg(feature = "ieee-round-nearest")]
-    {
+    } else {
       rmode = 0;
     }
-  }
-  #[cfg(feature = "ieee-round-nearest-ties-away")]
-  {
+  } else {
     rmode = 0;
   }
 

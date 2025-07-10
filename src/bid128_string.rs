@@ -242,7 +242,7 @@ pub fn bid128_to_string(x: BidUint128) -> String {
 
 /// Converts a value represented in string format (decimal character sequence)
 /// to 128-bit decimal floating-point format (binary encoding).
-pub fn bid128_from_string(input: &str, _rnd_mode: IdecRound, _pfpsf: &mut IdecFlags) -> BidUint128 {
+pub fn bid128_from_string(input: &str, rounding: IdecRound, flags: &mut IdecFlags) -> BidUint128 {
   let mut res: BidUint128 = Default::default();
   let mut cx: BidUint128 = Default::default();
   let mut coeff_high: BidUint64;
@@ -571,7 +571,7 @@ pub fn bid128_from_string(input: &str, _rnd_mode: IdecRound, _pfpsf: &mut IdecFl
         cx.w[1] = cx.w[1].wrapping_add(1);
       }
     }
-    bid_get_bid128(&mut res, sign_x, dec_expon, cx, _rnd_mode, _pfpsf);
+    bid_get_bid128(&mut res, sign_x, dec_expon, cx, rounding, flags);
     res
   } else {
     // Simply round using the digits that were read.
@@ -597,7 +597,7 @@ pub fn bid128_from_string(input: &str, _rnd_mode: IdecRound, _pfpsf: &mut IdecFl
       coeff_low = (coeff_l2 << 2).wrapping_add(coeff_l2).wrapping_add((buffer[i as usize] - b'0') as u64);
       i += 1;
     }
-    match _rnd_mode {
+    match rounding {
       BID_ROUNDING_TO_NEAREST => {
         carry = ((b'4' as i8).wrapping_sub(buffer[i as usize] as i8) as u32 >> 31) as u64;
         if (buffer[i as usize] == b'5' && (coeff_low & 1) == 0) || dec_expon < 0 {
@@ -676,17 +676,11 @@ pub fn bid128_from_string(input: &str, _rnd_mode: IdecRound, _pfpsf: &mut IdecFl
       cx.w[1] = cx.w[1].wrapping_add(1);
     }
 
-    #[cfg(feature = "bid-set-status-flags")]
-    if set_inexact {
-      set_status_flags!(_pfpsf, BID_INEXACT_EXCEPTION);
-    }
-    #[cfg(not(feature = "bid-set-status-flags"))]
-    {
-      // Just for silencing warnings when feature 'bid-set-status-flags' is not set.
-      let _ = set_inexact;
+    if cfg!(feature = "bid-set-status-flags") && set_inexact {
+      set_status_flags!(flags, BID_INEXACT_EXCEPTION);
     }
 
-    bid_get_bid128(&mut res, sign_x, dec_expon, cx, _rnd_mode, _pfpsf);
+    bid_get_bid128(&mut res, sign_x, dec_expon, cx, rounding, flags);
     res
   }
 }

@@ -1018,7 +1018,7 @@ fn _0172() {
 #[test]
 fn _0173() {
   let expected: BidArray = if cfg!(feature = "ieee-round-nearest-ties-away") || cfg!(feature = "ieee-round-nearest") {
-    [0xcfe4848bd6adddef, 0x6e5040816616a3A0]
+    [0xcfe4848bd6adddef, 0x6e5040816616a3a0]
   } else {
     [0xcfe4848bd6adddef, 0x6e5040816616a39f]
   };

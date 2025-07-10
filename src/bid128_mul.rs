@@ -6,7 +6,7 @@ use crate::bid128_fma::bid128_fma;
 use crate::{BidUint64, BidUint128};
 
 /// Multiplies two 128-bit decimal floating-point values.
-pub fn bid128_mul(x: BidUint128, y: BidUint128, _rnd_mode: IdecRound, _pfpsf: &mut IdecFlags) -> BidUint128 {
+pub fn bid128_mul(x: BidUint128, y: BidUint128, rounding: IdecRound, flags: &mut IdecFlags) -> BidUint128 {
   let z = BidUint128 { w: [0x0000000000000000, 0x5ffe000000000000] };
   let mut res = BidUint128 { w: [0xbaddbaddbaddbadd, 0xbaddbaddbaddbadd] };
   let x_sign: BidUint64;
@@ -81,5 +81,5 @@ pub fn bid128_mul(x: BidUint128, y: BidUint128, _rnd_mode: IdecRound, _pfpsf: &m
     }
   }
 
-  bid128_fma(y, x, z, _rnd_mode, _pfpsf)
+  bid128_fma(y, x, z, rounding, flags)
 }

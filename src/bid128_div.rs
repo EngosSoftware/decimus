@@ -7,7 +7,7 @@ use crate::bid128_common::*;
 use crate::{BidUint32, BidUint64, BidUint128, BidUint256, IdecFlags, IdecRound};
 
 /// Divides two 128-bit decimal floating-point values.
-pub fn bid128_div(x: BidUint128, y: BidUint128, rnd_mode: IdecRound, pfpsf: &mut IdecFlags) -> BidUint128 {
+pub fn bid128_div(x: BidUint128, y: BidUint128, rounding: IdecRound, flags: &mut IdecFlags) -> BidUint128 {
   let mut ca4: BidUint256 = Default::default();
   let mut ca4r: BidUint256 = Default::default();
   let mut p256: BidUint256 = Default::default();
@@ -64,10 +64,10 @@ pub fn bid128_div(x: BidUint128, y: BidUint128, rnd_mode: IdecRound, pfpsf: &mut
   if unpack_bid128_value(&mut sign_x, &mut exponent_x, &mut cx, x) == 0 {
     // test if x is NaN
     if (x.w[1] & MASK_NAN) == MASK_NAN {
-      #[cfg(feature = "bid-set-status-flags")]
-      {
+      #[allow(clippy::collapsible_if)]
+      if cfg!(feature = "bid-set-status-flags") {
         if (x.w[1] & MASK_SNAN) == MASK_SNAN || (y.w[1] & MASK_SNAN) == MASK_SNAN {
-          set_status_flags!(pfpsf, BID_INVALID_EXCEPTION);
+          set_status_flags!(flags, BID_INVALID_EXCEPTION);
         }
       }
       res.w[1] = cx.w[1] & QUIET_MASK64;
@@ -80,8 +80,9 @@ pub fn bid128_div(x: BidUint128, y: BidUint128, rnd_mode: IdecRound, pfpsf: &mut
       if (y.w[1] & 0x7c00000000000000) == 0x7800000000000000
       // return NaN
       {
-        #[cfg(feature = "bid-set-status-flags")]
-        set_status_flags!(pfpsf, BID_INVALID_EXCEPTION);
+        if cfg!(feature = "bid-set-status-flags") {
+          set_status_flags!(flags, BID_INVALID_EXCEPTION);
+        }
         res.w[1] = 0x7c00000000000000;
         res.w[0] = 0;
         return res;
@@ -99,8 +100,9 @@ pub fn bid128_div(x: BidUint128, y: BidUint128, rnd_mode: IdecRound, pfpsf: &mut
     // x is 0
     if (y.w[1] & 0x7800000000000000) < 0x7800000000000000 {
       if cy.w[0] == 0 && (cy.w[1] & 0x0001ffffffffffff) == 0 {
-        #[cfg(feature = "bid-set-status-flags")]
-        set_status_flags!(pfpsf, BID_INVALID_EXCEPTION);
+        if cfg!(feature = "bid-set-status-flags") {
+          set_status_flags!(flags, BID_INVALID_EXCEPTION);
+        }
         // x=y=0, return NaN
         res.w[1] = 0x7c00000000000000;
         res.w[0] = 0;
@@ -121,10 +123,10 @@ pub fn bid128_div(x: BidUint128, y: BidUint128, rnd_mode: IdecRound, pfpsf: &mut
 
     // test if y is NaN
     if (y.w[1] & 0x7c00000000000000) == 0x7c00000000000000 {
-      #[cfg(feature = "bid-set-status-flags")]
-      {
+      #[allow(clippy::collapsible_if)]
+      if cfg!(feature = "bid-set-status-flags") {
         if (y.w[1] & 0x7e00000000000000) == 0x7e00000000000000 {
-          set_status_flags!(pfpsf, BID_INVALID_EXCEPTION);
+          set_status_flags!(flags, BID_INVALID_EXCEPTION);
         }
       }
       res.w[1] = cy.w[1] & QUIET_MASK64;
@@ -139,9 +141,9 @@ pub fn bid128_div(x: BidUint128, y: BidUint128, rnd_mode: IdecRound, pfpsf: &mut
       return res;
     }
     // y is 0, return +/-Inf
-    #[cfg(feature = "bid-set-status-flags")]
-    set_status_flags!(pfpsf, BID_ZERO_DIVIDE_EXCEPTION);
-
+    if cfg!(feature = "bid-set-status-flags") {
+      set_status_flags!(flags, BID_ZERO_DIVIDE_EXCEPTION);
+    }
     res.w[1] = ((x.w[1] ^ y.w[1]) & 0x8000000000000000) | 0x7800000000000000;
     res.w[0] = 0;
     return res;
@@ -190,7 +192,7 @@ pub fn bid128_div(x: BidUint128, y: BidUint128, rnd_mode: IdecRound, pfpsf: &mut
     bid_div_128_by_128(&mut cq, &mut cr, cx, cy);
 
     if cr.w[1] == 0 && cr.w[0] == 0 {
-      bid_get_bid128(&mut res, sign_x ^ sign_y, diff_expon, cq, rnd_mode, pfpsf);
+      bid_get_bid128(&mut res, sign_x ^ sign_y, diff_expon, cq, rounding, flags);
       // #ifdef UNCHANGED_BINARY_STATUS_FLAGS
       // (void) fesetexceptflag (&binaryflags, BID_FE_ALL_FLAGS);
       // #endif
@@ -223,7 +225,7 @@ pub fn bid128_div(x: BidUint128, y: BidUint128, rnd_mode: IdecRound, pfpsf: &mut
   let mut feature_gate = false;
   if cfg!(feature = "bid-set-status-flags") {
     if ca4.w[0] > 0 || ca4.w[1] > 0 {
-      set_status_flags!(pfpsf, BID_INEXACT_EXCEPTION);
+      set_status_flags!(flags, BID_INEXACT_EXCEPTION);
     } else if cfg!(not(feature = "leave-trailing-zeros")) {
       feature_gate = true;
     }
@@ -389,7 +391,7 @@ pub fn bid128_div(x: BidUint128, y: BidUint128, rnd_mode: IdecRound, pfpsf: &mut
       }
     }
 
-    bid_get_bid128(&mut res, sign_x ^ sign_y, diff_expon, cq, rnd_mode, pfpsf);
+    bid_get_bid128(&mut res, sign_x ^ sign_y, diff_expon, cq, rounding, flags);
     // #ifdef UNCHANGED_BINARY_STATUS_FLAGS
     // (void) fesetexceptflag (&binaryflags, BID_FE_ALL_FLAGS);
     // #endif
@@ -428,7 +430,7 @@ pub fn bid128_div(x: BidUint128, y: BidUint128, rnd_mode: IdecRound, pfpsf: &mut
         inc!(cq.w[1]);
       }
     } else {
-      rmode = rnd_mode;
+      rmode = rounding;
       if sign_x ^ sign_y > 0 && rmode.wrapping_sub(1) < 2 {
         rmode = 3 - rmode;
       }
@@ -471,11 +473,14 @@ pub fn bid128_div(x: BidUint128, y: BidUint128, rnd_mode: IdecRound, pfpsf: &mut
       }
     }
   } else {
-    if cfg!(feature = "bid-set-status-flags") && (ca4.w[0] > 0 || ca4.w[1] > 0) {
-      set_status_flags!(pfpsf, BID_INEXACT_EXCEPTION);
+    #[allow(clippy::collapsible_if)]
+    if cfg!(feature = "bid-set-status-flags") {
+      if ca4.w[0] > 0 || ca4.w[1] > 0 {
+        set_status_flags!(flags, BID_INEXACT_EXCEPTION);
+      }
     }
 
-    bid_handle_uf_128_rem(&mut res, sign_x ^ sign_y, diff_expon, cq, ca4.w[1] | ca4.w[0], rnd_mode, pfpsf);
+    bid_handle_uf_128_rem(&mut res, sign_x ^ sign_y, diff_expon, cq, ca4.w[1] | ca4.w[0], rounding, flags);
 
     // #ifdef UNCHANGED_BINARY_STATUS_FLAGS
     // (void) fesetexceptflag (&binaryflags, BID_FE_ALL_FLAGS);
@@ -483,7 +488,7 @@ pub fn bid128_div(x: BidUint128, y: BidUint128, rnd_mode: IdecRound, pfpsf: &mut
     return res;
   }
 
-  bid_get_bid128(&mut res, sign_x ^ sign_y, diff_expon, cq, rnd_mode, pfpsf);
+  bid_get_bid128(&mut res, sign_x ^ sign_y, diff_expon, cq, rounding, flags);
   // #ifdef UNCHANGED_BINARY_STATUS_FLAGS
   // (void) fesetexceptflag (&binaryflags, BID_FE_ALL_FLAGS);
   // #endif
