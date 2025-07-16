@@ -17,7 +17,6 @@ jobs:
       - name: Run tests and collect coverage
         run: cargo llvm-cov --no-cfg-coverage --cobertura --output-path ./target/coverage.xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5.4.3
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./target/coverage.xml
