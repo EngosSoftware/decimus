@@ -13,6 +13,7 @@
 [![Apache 2.0 licensed][apache-badge]][apache-license-url]
 [![Contributor Covenant][cc-badge]][cc-url]
 [![Made by Human][mbh-badge]][cc-url]
+[![codecov](https://codecov.io/gh/EngosSoftware/decimus/branch/main/graph/badge.svg)](https://codecov.io/gh/EngosSoftware/decimus)
 
 [crates-badge]: https://img.shields.io/crates/v/decimus.svg
 [crates-url]: https://crates.io/crates/decimus
