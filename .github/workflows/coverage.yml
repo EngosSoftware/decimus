@@ -10,14 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@stable
-      - name: Install llvm-cov
-        run: cargo install cargo-llvm-cov
-      - name: Run tests and collect coverage
-        run: cargo llvm-cov --no-cfg-coverage --cobertura --output-path ./coverage.xml
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install cargo-llvm-cov
+      - run: cargo llvm-cov --no-cfg-coverage --cobertura --output-path ./coverage.xml
+      - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml

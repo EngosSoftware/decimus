@@ -1,7 +1,7 @@
 # decimus
 
 [![Crates.io][crates-badge]][crates-url]
-![Code coverage][coverage-badge]
+[![codecov][coverage-badge]][coverage-url]
 ![build Linux][build-badge-linux]
 ![build Musl][build-badge-musl]
 ![build WASM][build-badge-wasm]
@@ -13,9 +13,10 @@
 [![Apache 2.0 licensed][apache-badge]][apache-license-url]
 [![Contributor Covenant][cc-badge]][cc-url]
 [![Made by Human][mbh-badge]][cc-url]
-[![codecov](https://codecov.io/gh/EngosSoftware/decimus/branch/main/graph/badge.svg)](https://codecov.io/gh/EngosSoftware/decimus)
 
 [crates-badge]: https://img.shields.io/crates/v/decimus.svg
+[coverage-badge]: https://codecov.io/gh/EngosSoftware/decimus/branch/main/graph/badge.svg
+[coverage-url]: https://codecov.io/gh/EngosSoftware/decimus
 [crates-url]: https://crates.io/crates/decimus
 [mit-badge]: https://img.shields.io/badge/License-MIT-blue.svg
 [mit-url]: https://opensource.org/licenses/MIT
@@ -31,7 +32,6 @@
 [build-badge-windows]: https://github.com/EngosSoftware/decimus/actions/workflows/build-windows.yml/badge.svg
 [build-badge-macos]: https://github.com/EngosSoftware/decimus/actions/workflows/build-macos.yml/badge.svg
 [build-badge-macos-arm64]: https://github.com/EngosSoftware/decimus/actions/workflows/build-macos-arm64.yml/badge.svg
-[coverage-badge]: https://img.shields.io/badge/Code%20coverage-68%25-green.svg
 [cc-badge]: https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg
 [cc-url]: https://github.com/EngosSoftware/decimus/blob/main/CODE_OF_CONDUCT.md
 [mbh-badge]: https://img.shields.io/badge/Made_by-HUMAN-d35400.svg
