@@ -1,5 +1,3 @@
-#![allow(unused_macros)]
-
 use crate::bid_decimal_data::*;
 use crate::bid_functions::*;
 use crate::{BidUint64, BidUint128, BidUint256, IdecFlags, IdecRound};
@@ -60,7 +58,9 @@ pub(crate) use dec;
 //======================================
 
 macro_rules! set_status_flags {
-  ($fpsc:expr, $status:expr) => {{ *$fpsc |= $status }};
+  ($fpsc:expr, $status:expr) => {
+    *$fpsc |= $status
+  };
 }
 
 pub(crate) use set_status_flags;
@@ -926,6 +926,7 @@ macro_rules! mul_128x128_full {
     $ql.w[1] = qm2.w[0];
   };
 }
+pub(crate) use mul_128x128_full;
 
 macro_rules! mul_128x128_low {
   ($ql:expr, $a:expr, $b:expr) => {
@@ -937,27 +938,6 @@ macro_rules! mul_128x128_low {
   };
 }
 pub(crate) use mul_128x128_low;
-
-macro_rules! mul_128x128_full {
-  ($qh:expr, $ql:expr, $a:expr, $b:expr) => {
-    let mut albl: BidUint128 = Default::default();
-    let mut albh: BidUint128 = Default::default();
-    let mut ahbl: BidUint128 = Default::default();
-    let mut ahbh: BidUint128 = Default::default();
-    let mut qm: BidUint128 = Default::default();
-    let mut qm2: BidUint128 = Default::default();
-    mul_64x64_to_128!(albh, ($a).w[0], ($b).w[1]);
-    mul_64x64_to_128!(ahbl, ($b).w[0], ($a).w[1]);
-    mul_64x64_to_128!(albl, ($a).w[0], ($b).w[0]);
-    mul_64x64_to_128!(ahbh, ($a).w[1], ($b).w[1]);
-    add_128_128!(qm, albh, ahbl);
-    $ql.w[0] = albl.w[0];
-    add_128_64!(qm2, qm, albl.w[1]);
-    add_128_64!($qh, ahbh, qm2.w[1]);
-    $ql.w[1] = qm2.w[0];
-  };
-}
-pub(crate) use mul_128x128_full;
 
 /// Get full 64x64-bit product.
 /// Note that this macro is used for `CX < 2^61`, `CY < 2^61`.
