@@ -15,4 +15,8 @@ jobs:
       - name: Install llvm-cov
         run: cargo install cargo-llvm-cov
       - name: Run tests and collect coverage
-        run: cargo llvm-cov --no-cfg-coverage --cobertura --output-path ./target/cobertura.xml
+        run: cargo llvm-cov --no-cfg-coverage --cobertura --output-path ./target/coverage.xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./target/coverage.xml
