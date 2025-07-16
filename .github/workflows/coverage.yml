@@ -1,0 +1,18 @@
+name: Coverage
+
+on: [ push, pull_request ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install llvm-cov
+        run: cargo install cargo-llvm-cov
+      - name: Run tests and collect coverage
+        run: cargo llvm-cov --no-cfg-coverage --cobertura --output-path ./target/cobertura.xml

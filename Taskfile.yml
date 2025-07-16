@@ -66,6 +66,11 @@ tasks:
     cmds:
       - cmd: cargo +stable clippy --all-targets --all-features
 
+  cob:
+    desc: Generates code coverage report in "cobertura" XML format
+    cmds:
+      - cmd: cargo llvm-cov --no-cfg-coverage --cobertura --output-path ./target/cobertura.xml
+
   cov:
     desc: Generates code coverage report
     cmds:
