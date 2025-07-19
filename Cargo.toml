@@ -1,6 +1,6 @@
 [package]
 name = "decimus"
-version = "0.0.5"
+version = "0.0.6"
 authors = ["Dariusz Depta <depta@engos.de>"]
 description = "Decimal Floating-Point Math Library for Rust"
 documentation = "https://docs.rs/decimus"
