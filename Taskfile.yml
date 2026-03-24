@@ -66,20 +66,31 @@ tasks:
     cmds:
       - cmd: cargo +stable clippy --all-targets --all-features
 
-  cob:
-    desc: Generates code coverage report in "cobertura" XML format
-    cmds:
-      - cmd: cargo llvm-cov --no-cfg-coverage --cobertura --output-path ./target/cobertura.xml
-
-  cov:
+  cov-all:
     desc: Generates code coverage report
     cmds:
       - cmd: cargo llvm-cov clean
       - cmd: cargo llvm-cov --quiet --no-cfg-coverage --no-report
       - cmd: cargo llvm-cov --quiet --no-cfg-coverage --no-default-features --no-report
-      - cmd: cargo llvm-cov --quiet --no-cfg-coverage --all-features
+      - cmd: cargo llvm-cov --quiet --no-cfg-coverage --all-features --no-report
+
+  cov:
+    desc: Generates code coverage report
+    cmds:
+      - task: cov-all
+      - cmd: cargo llvm-cov report
+
+  cov-html:
+    desc: Generates code coverage report in HTML format
+    cmds:
+      - task: cov-all
       - cmd: cargo llvm-cov report --html
-      - cmd: cargo my llvmCodeCoverageReportLink
+
+  cov-html-open:
+    desc: Generates code coverage report in HTML format and opens in browser
+    cmds:
+      - task: cov-all
+      - cmd: cargo llvm-cov report --html --open
 
   doc:
     desc: Generates documentation

@@ -245,8 +245,11 @@ pub fn bid128_div(x: BidUint128, y: BidUint128, rounding: IdecRound, flags: &mut
       if d5 < nzeros {
         nzeros = d5;
       }
-      // get P*(2^M[extra_digits])/10^extra_digits
-      mul_128x128_full!(qh, ql, cq, bid_reciprocals10_128![nzeros]);
+      #[allow(unused_assignments)]
+      {
+        // get P*(2^M[extra_digits])/10^extra_digits
+        mul_128x128_full!(qh, ql, cq, bid_reciprocals10_128![nzeros]);
+      }
 
       // now get P/10^extra_digits: shift q_high right by M[extra_digits]-128
       amount = bid_recip_scale![nzeros];
@@ -380,8 +383,11 @@ pub fn bid128_div(x: BidUint128, y: BidUint128, rounding: IdecRound, flags: &mut
         }
 
         if nzeros > 0 {
-          // get P*(2^M[extra_digits])/10^extra_digits
-          mul_128x128_full!(qh, ql, cq, bid_reciprocals10_128![nzeros]);
+          #[allow(unused_assignments)]
+          {
+            // get P*(2^M[extra_digits])/10^extra_digits
+            mul_128x128_full!(qh, ql, cq, bid_reciprocals10_128![nzeros]);
+          }
 
           //now get P/10^extra_digits: shift q_high right by M[extra_digits]-128
           amount = bid_recip_scale![nzeros];

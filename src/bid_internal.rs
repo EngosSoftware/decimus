@@ -472,7 +472,7 @@ pub(crate) use bid_maskhigh128;
 
 /// Table BID_MASKHIGH128
 ///
-/// BID_MASKHIGH128 contains the mask to apply to the top 128 bits of the 
+/// BID_MASKHIGH128 contains the mask to apply to the top 128 bits of the
 /// 128x128-bit product in order to obtain the high bits of f2*.
 #[rustfmt::skip]
 pub const BID_MASKHIGH128: [BidUint64; 34] = [
@@ -570,7 +570,7 @@ macro_rules! bid_ten2mk128trunc {
 
 pub(crate) use bid_ten2mk128trunc;
 
-/// Table BID_TEN2MK128TRUNC 
+/// Table BID_TEN2MK128TRUNC
 ///
 /// BID_TEN2MK128TRUNC contains T*, the top Ex >= 128 bits of 10^(-k), for 1 <= k <= 34
 ///
